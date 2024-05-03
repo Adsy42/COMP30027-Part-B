@@ -2,14 +2,12 @@
 # Project Part B: Game Playing Agent
 
 from dataclasses import dataclass
-
 from .pieces import Piece, PieceType, create_piece
 from .coord import Coord, Direction
 from .player import PlayerColor
 from .actions import Action, PlaceAction
 from .exceptions import IllegalActionException
 from .constants import *
-
 
 @dataclass(frozen=True, slots=True)
 class CellState:
@@ -110,7 +108,7 @@ class Board:
         
         self._history.append(mutation)
         self._turn_color = self._turn_color.opponent
-
+        
         return mutation
 
     def undo_action(self) -> BoardMutation:
