@@ -3,6 +3,7 @@ from referee.game.player import PlayerColor
 from referee.game.pieces import _TEMPLATES, PieceType
 from referee.game.actions import PlaceAction
 from referee.game.coord import Coord
+TILES_LEN = 4
 class BitBoard:
     def __init__(self) -> None:
         """Initializes the BitBoard with separate bitboards for RED, BLUE, and a combined bitboard."""
@@ -11,6 +12,8 @@ class BitBoard:
             PlayerColor.BLUE: 0,
             'combined': 0
         }
+        self.tiles = {PlayerColor.RED: 0, PlayerColor.BLUE: 0}
+        self.turns_played = 0
 
     @staticmethod
     def get_bit_index(row: int, column: int) -> int:
@@ -96,6 +99,14 @@ class BitBoard:
         
         return PlaceAction(*coordinates)
 
+    def count_bits(self, number: int) -> int:
+        """Counts the number of 1s in the binary representation of the number."""
+        count = 0
+        while number:
+            count += number & 1
+            number >>= 1
+        return count
+
     def apply_action(self, action: PlaceAction, player_colour: PlayerColor):
         bitboard_piece_position = 0
         for coord in action.coords:
@@ -104,6 +115,7 @@ class BitBoard:
 
         if not (bitboard_piece_position & self.Boards['combined']):
             self.Boards[player_colour] |= bitboard_piece_position
+            self.tiles[player_colour] += TILES_LEN
             self.Boards['combined'] |= bitboard_piece_position
             removed_lines = self.lines_removed()
             self.remove_lines(removed_lines[0], removed_lines[1])
@@ -111,20 +123,20 @@ class BitBoard:
     
     def remove_lines(self, rows: list[int], columns: list[int]):
         """Clears specified full rows and columns from each player's board and updates the combined board."""
-        print(f"REMOVE rows:{rows} columns:{columns}")
+        print(f"Removing rows: {rows} and columns: {columns}")
         full_row_mask = (1 << BOARD_N) - 1  # Mask for a full row
         for color in [PlayerColor.RED, PlayerColor.BLUE]:
             for row in rows:
                 row_mask = full_row_mask << (row * BOARD_N)
+                self.tiles[color] -= self.count_bits(row_mask & self.Boards[color])
                 self.Boards[color] &= ~row_mask
             for column in columns:
                 column_mask = 0
                 for i in range(BOARD_N):
                     column_mask |= (1 << (i * BOARD_N + column))
+                self.tiles[color] -= self.count_bits(column_mask & self.Boards[color])
                 self.Boards[color] &= ~column_mask
-        # Ensure the combined board reflects changes to individual boards
         self.Boards['combined'] = self.Boards[PlayerColor.RED] | self.Boards[PlayerColor.BLUE]
-
     
     def cell_occupied_by(self, bitindex):
         """Determines if a cell at a given bit index is occupied and by which player."""
@@ -164,3 +176,7 @@ class BitBoard:
                 output += " "
             output += "\n"
         print(output)
+
+    def board_control(self, player_colour: PlayerColor):
+        control = self.tiles[PlayerColor.RED] - self.tiles[PlayerColor.BLUE]
+        return -1 * control if player_colour == PlayerColor.BLUE else control

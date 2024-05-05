@@ -2,7 +2,7 @@
 # Project Part B: Game Playing Agent
 
 from referee.game import PlayerColor, Action, PlaceAction, Coord
-from bitboard import BitBoard
+from agent.bitboard import BitBoard
 
 class Agent:
     """
@@ -45,7 +45,7 @@ class Agent:
                     Coord(2, 5), 
                     Coord(2, 6)
                 )
-
+        print(f" BOARD CONTROL {self._board.board_control(self._color)}")
         # Below we have hardcoded two actions to be played depending on whether
         # the agent is playing as BLUE or RED. Obviously this won't work beyond
         # the initial moves of the game, so you should use some game playing
