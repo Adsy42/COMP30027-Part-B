@@ -2,7 +2,25 @@
 # Project Part B: Game Playing Agent
 
 from referee.game import PlayerColor, Action, PlaceAction, Coord
-from bitboard import BitBoard
+from agent.bitboard import BitBoard
+import cProfile
+import pstats
+import io
+
+def profiled_function(func):
+    def wrapper(*args, **kwargs):
+        profiler = cProfile.Profile()
+        profiler.enable()
+        result = func(*args, **kwargs)
+        profiler.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print(s.getvalue())
+        return result
+    return wrapper
+
 
 class Agent:
     """
@@ -15,6 +33,7 @@ class Agent:
         This constructor method runs when the referee instantiates the agent.
         Any setup and/or precomputation should be done here.
         """
+        self.increase =1
         self._color = color
         self._board:BitBoard = BitBoard()
         match color:
@@ -23,6 +42,7 @@ class Agent:
             case PlayerColor.BLUE:
                 print("Testing: I am playing as BLUE")
 
+    @profiled_function
     def action(self, **referee: dict) -> Action:
         """
         This method is called by the referee each time it is the agent's turn
@@ -45,26 +65,24 @@ class Agent:
                     Coord(2, 5), 
                     Coord(2, 6)
                 )
-        print(f" BOARD CONTROL {self._board.board_control(self._color)}")
         # Below we have hardcoded two actions to be played depending on whether
         # the agent is playing as BLUE or RED. Obviously this won't work beyond
         # the initial moves of the game, so you should use some game playing
         # technique(s) to determine the best action to take.
         """Attempts to find an empty cell, generate a valid piece, and apply it."""
         empty_cells = self._board.empty_adjacent_cells(self._color)
+        self.increase += 1
         if not empty_cells:
             return False  # No empty cells available
-
-        for empty_cell in empty_cells:
-            valid_pieces = self._board.generate_valid_pieces(empty_cell)
-            if valid_pieces:  # Check if there are any valid pieces to place
-                return self._board.bitboard_piece_to_placeaction(valid_pieces[0])
-        return False
-
+        for i in range(self.increase * 100):
+            for empty_cell in empty_cells:
+                valid_pieces = self._board.generate_valid_pieces(empty_cell)
+                if valid_pieces:
+                    valid_piece = valid_pieces[0]  # Check if there are any valid pieces to place
+        return self._board.bitboard_piece_to_placeaction(valid_piece)
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):
         self._board.apply_action(action, color)
-        self._board.render(use_color=True, use_unicode=True)
 
         """
         This method is called by the referee after an agent has taken their

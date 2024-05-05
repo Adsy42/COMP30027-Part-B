@@ -3,6 +3,10 @@ from referee.game.player import PlayerColor
 from referee.game.pieces import _TEMPLATES, PieceType
 from referee.game.actions import PlaceAction
 from referee.game.coord import Coord
+from agent.precomputed_bitboards import  bitboards_pre_computed
+
+
+BOARD_N = 11
 TILES_LEN = 4
 class BitBoard:
     def __init__(self) -> None:
@@ -41,8 +45,9 @@ class BitBoard:
     def generate_valid_pieces(self, bitindex: int) -> list:
         """Returns a set of bitboards representing valid pieces that can be placed on the board."""
         valid_pieces = list()
+        row, column = BitBoard.get_coord(bitindex)
         for piece in PieceType:
-            bitboard_piece_position = self.create_piece_in_position(piece, bitindex)
+            bitboard_piece_position = bitboards_pre_computed[piece][(row, column)]
             if not (bitboard_piece_position & self.Boards['combined']):
                 valid_pieces.append(bitboard_piece_position)
         return valid_pieces
