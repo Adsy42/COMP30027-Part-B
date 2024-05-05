@@ -3,7 +3,7 @@ from referee.game.player import PlayerColor
 from referee.game.pieces import _TEMPLATES, PieceType
 from referee.game.actions import PlaceAction
 from referee.game.coord import Coord
-from agent.precomputed_bitboards import  bitboards_pre_computed
+from agent.precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
 
 
 BOARD_N = 11
@@ -44,53 +44,29 @@ class BitBoard:
 
     def generate_valid_pieces(self, bitindex: int) -> list:
         """Returns a set of bitboards representing valid pieces that can be placed on the board."""
-        valid_pieces = list()
-        row, column = BitBoard.get_coord(bitindex)
-        for piece in PieceType:
-            bitboard_piece_position = bitboards_pre_computed[piece][(row, column)]
-            if not (bitboard_piece_position & self.Boards['combined']):
-                valid_pieces.append(bitboard_piece_position)
-        return valid_pieces
+        row, column = bitindex // BOARD_N, bitindex % BOARD_N
+        return [positions[(row, column)]
+                for positions in bitboards_pre_computed.values()
+                if not (positions[(row, column)] & self.Boards['combined'])]
 
-    def lines_removed(self) -> tuple[list[int], list[int]]:
-        """Identifies full rows and columns that need to be cleared from the board."""
-        row_checks = []
-        full_row = (1 << BOARD_N) - 1
-        for i in range(BOARD_N):
-            if (self.Boards["combined"] & (full_row << (i * BOARD_N))) == (full_row << (i * BOARD_N)):
-                row_checks.append(i)
-
-        column_checks = []
-        for j in range(BOARD_N):
-            full_column = 0
-            for i in range(BOARD_N):
-                full_column |= (1 << (i * BOARD_N + j))
-            if (self.Boards["combined"] & full_column) == full_column:
-                column_checks.append(j)
-
+    def lines_removed(self):
+        row_checks = [idx for idx, row_bb in enumerate(full_rows)
+                      if (self.Boards['combined'] & row_bb) == row_bb]
+        column_checks = [idx for idx, col_bb in enumerate(full_columns)
+                         if (self.Boards['combined'] & col_bb) == col_bb]
         return (row_checks, column_checks)
 
     def empty_adjacent_cells(self, player_colour: PlayerColor) -> list[int]:
-        """Finds all unique empty cell indices that are adjacent to any tile occupied by the specified player."""
-        total_empty_cells = ~self.Boards['combined']
-        player_colour_cells = self.Boards[player_colour]
-        adjacent_empty_cells = list()
-
-        for index in range(BOARD_N**2):
-            if player_colour_cells & (1 << index):
-                x = index // BOARD_N
-                y = index % BOARD_N
-                neighbors = [
-                    self.get_bit_index((x - 1) % BOARD_N, y),
-                    self.get_bit_index((x + 1) % BOARD_N, y),
-                    self.get_bit_index(x, (y - 1) % BOARD_N),
-                    self.get_bit_index(x, (y + 1) % BOARD_N)
-                ]
-                for neighbour in neighbors:
-                    if total_empty_cells & (1 << neighbour):
-                        adjacent_empty_cells.append(neighbour)
-
-        return adjacent_empty_cells
+            player_cells = self.Boards[player_colour]
+            adjacent_empty_cells = set()
+            for index in range(BOARD_N**2):
+                if player_cells & (1 << index):
+                    adjacent_cells = adjacent_bitboards[index]
+                    empty_cells = adjacent_cells & ~self.Boards['combined']
+                    for shift in range(BOARD_N**2):
+                        if empty_cells & (1 << shift):
+                            adjacent_empty_cells.add(shift)
+            return list(adjacent_empty_cells)
 
     @staticmethod
     def bitboard_piece_to_placeaction(bitboard_piece_position):
@@ -127,20 +103,15 @@ class BitBoard:
 
     
     def remove_lines(self, rows: list[int], columns: list[int]):
-        """Clears specified full rows and columns from each player's board and updates the combined board."""
-        print(f"Removing rows: {rows} and columns: {columns}")
-        full_row_mask = (1 << BOARD_N) - 1  # Mask for a full row
         for color in [PlayerColor.RED, PlayerColor.BLUE]:
             for row in rows:
-                row_mask = full_row_mask << (row * BOARD_N)
+                row_mask = full_rows[row]
                 self.tiles[color] -= self.count_bits(row_mask & self.Boards[color])
                 self.Boards[color] &= ~row_mask
             for column in columns:
-                column_mask = 0
-                for i in range(BOARD_N):
-                    column_mask |= (1 << (i * BOARD_N + column))
-                self.tiles[color] -= self.count_bits(column_mask & self.Boards[color])
-                self.Boards[color] &= ~column_mask
+                col_mask = full_columns[column]
+                self.tiles[color] -= self.count_bits(col_mask & self.Boards[color])
+                self.Boards[color] &= ~col_mask
         self.Boards['combined'] = self.Boards[PlayerColor.RED] | self.Boards[PlayerColor.BLUE]
     
     def cell_occupied_by(self, bitindex):

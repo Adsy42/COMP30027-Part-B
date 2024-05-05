@@ -33,7 +33,6 @@ class Agent:
         This constructor method runs when the referee instantiates the agent.
         Any setup and/or precomputation should be done here.
         """
-        self.increase =1
         self._color = color
         self._board:BitBoard = BitBoard()
         match color:
@@ -71,10 +70,9 @@ class Agent:
         # technique(s) to determine the best action to take.
         """Attempts to find an empty cell, generate a valid piece, and apply it."""
         empty_cells = self._board.empty_adjacent_cells(self._color)
-        self.increase += 1
         if not empty_cells:
             return False  # No empty cells available
-        for i in range(self.increase * 100):
+        for i in range(20000):
             for empty_cell in empty_cells:
                 valid_pieces = self._board.generate_valid_pieces(empty_cell)
                 if valid_pieces:
