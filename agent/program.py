@@ -7,7 +7,7 @@ from referee.game.pieces import PieceType, create_piece
 from math import sqrt, log
 from random import choice
 # python -m referee agent.program:Monte_Carlo_Agent agent.program:Monte_Carlo_Agent
-
+#python -m referee agent agent
 EXPLORATION_CONSTANT = 1.41
 
 class Monte_Carlo_Tree_Node:
@@ -49,18 +49,26 @@ class Monte_Carlo_Tree_Node:
         #num_moves = 0
         #Intialise game state by implementing current action
         board_updated = self.my_board.copy()
-        line_removal(self.action, board_updated, self.colour)
+        actionPlace = [self.action.c1, self.action.c2, self.action.c3, self.action.c4]
+        line_removal(actionPlace, board_updated, self.colour)
 
-        while board_updated.winner_color is None:
-            #Opponents turn
+        #while generate_valid_board_states:
+        while 1:
+            # Opponent's turn
             opponent_move = find_first_valid_placement(board_updated, self.opponent_color)
-            line_removal(opponent_move, board_updated, self.opponent_color)
-            #Our turn
-            our_move = find_first_valid_placement(board_updated, self.colour)
-            line_removal(our_move, board_updated, self.colour)
+            if opponent_move == None:
+                return self.opponent_color
+            opponent_coords = [opponent_move.c1, opponent_move.c2, opponent_move.c3, opponent_move.c4]
+            line_removal(opponent_coords, board_updated, self.opponent_color)
 
-        return board_updated.winner_color
-    
+            # Your turn
+            your_move = find_first_valid_placement(board_updated, self.colour)
+            if your_move == None:
+                return self.colour
+            your_coords = [your_move.c1, your_move.c2, your_move.c3, your_move.c4]
+            line_removal(your_coords, board_updated, self.colour)
+
+       
     def backpropogate(self, winning_colour):
 
         #Update current node values
@@ -111,7 +119,7 @@ class Monte_Carlo_Tree_Node:
         return best_child
     
     
-class Monte_Carlo_Agent:
+class Agent:
     def __init__(self, color: PlayerColor, **referee: dict):
         """
         This constructor method runs when the referee instantiates the agent.
@@ -136,20 +144,44 @@ class Monte_Carlo_Agent:
 
     def action(self, **referee: dict) -> Action:
 
+
         #Intialise the root node if it hasnt already been
         if self.root_node is None:
             #Double check if the board parsed is the referee board or the 
-            self.root_node = Monte_Carlo_Tree_Node(parent_node=None, action=None, colour=self.color, board=referee['board'])        
-            
+            self.root_node = Monte_Carlo_Tree_Node(parent_node=None, action=None, colour=self.color, board=self.board)        
+        
+        #Place random action if board is empty
+        if len(self.root_node.my_board) == 0:
+            return PlaceAction(
+                    Coord(2, 3), 
+                    Coord(2, 4), 
+                    Coord(2, 5), 
+                    Coord(2, 6)
+                )
+        elif is_color_missing(self.root_node.my_board, self.color):
+            return PlaceAction(
+                    Coord(8, 8), 
+                    Coord(8, 7), 
+                    Coord(8, 9), 
+                    Coord(8, 10)
+                )
+
         # Start with the root node and generate all valid movements as children
         current_node = self.root_node
-        valid_placement = generate_valid_placements(self.board,self.color)
-        current_node.add_children_nodes(valid_placement, current_node.my_board)
-        
-        
+        valid_placements = generate_valid_placements(self.root_node.my_board , self.color)
+        # print("Board")
+        # print(self.root_node.my_board)
+        # print("Valid placements")
+        # print(valid_placements)
+        current_node.add_children_nodes(valid_placements , current_node.my_board)
+
+        # print("Children: ")
+        # print(current_node.children_nodes)
+
         #Iterate through the children until a leaf node is reached
-        while not current_node.is_leaf_node():
+        while not current_node.is_leaf_node(): 
             #Choose the children with the highest UCT score
+            print("Got here!!!!!!")
             current_node = current_node.selection()
 
         #Found leaf node, now check if it has been visited (or simulated)
@@ -269,7 +301,9 @@ def line_removal(tiles_placed: list[Coord], board: dict[Coord, PlayerColor], col
     # Implement action 
     for coord in tiles_placed:
         board[coord] = color
-   
+    
+    #board.apply_action()
+
     # Iterate through each tile placed seeing if it completed any row or columns
         
     for coord in tiles_placed:
@@ -317,3 +351,10 @@ def remove_line(rows_to_remove, columns_to_remove, board):
             row_coord = Coord(r=row_tile,c=column)
             if row_coord in board:
                 del board[row_coord]
+
+
+def is_color_missing(board, color):
+    for tile_color in board.values():
+        if tile_color == color:
+            return False
+    return True
