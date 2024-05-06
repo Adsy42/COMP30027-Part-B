@@ -6,9 +6,13 @@ from referee.game.constants import BOARD_N
 from referee.game.pieces import PieceType, create_piece
 from math import sqrt, log
 from random import choice
+import time
 # python -m referee agent.program:Monte_Carlo_Agent agent.program:Monte_Carlo_Agent
 #python -m referee agent agent
 EXPLORATION_CONSTANT = 1.41
+MAX_ACTIONS_PER_OPPONENT = 75
+AVG_SECS_PER_TURN = 2.4    # 180/75
+MAX_ACTIONS = 150
 
 class Monte_Carlo_Tree_Node:
     def __init__(self, parent_node, action, colour, board:Board):
@@ -20,7 +24,6 @@ class Monte_Carlo_Tree_Node:
         self.total_score = 0
         self.action = action 
         self.my_board: Board = board
-        #self.opponent_board = board
         self.move_num = 0
     
     #Untested
@@ -49,25 +52,46 @@ class Monte_Carlo_Tree_Node:
         #num_moves = 0
         #Intialise game state by implementing current action
         board_updated = self.my_board.copy()
+        
         actionPlace = [self.action.c1, self.action.c2, self.action.c3, self.action.c4]
         line_removal(actionPlace, board_updated, self.colour)
 
-        #while generate_valid_board_states:
+        # while board_updated.winner_color() == None:
+        #     opponent_move = find_first_valid_placement(board_updated, self.opponent_color)
+        #     opponent_coords = [opponent_move.c1, opponent_move.c2, opponent_move.c3, opponent_move.c4]
+        #     line_removal(opponent_coords, board_updated, self.opponent_color)
+
+        #     your_move = find_first_valid_placement(board_updated, self.colour)
+        #     your_coords = [your_move.c1, your_move.c2, your_move.c3, your_move.c4]
+        #     line_removal(your_coords, board_updated, self.colour)
+
+        # return board_updated.winner_color()
+        #Keep track of remaining moves for each opponent
+        our_move_num = self.move_num + 1  #We just placed our move
+        opp_move_num = self.move_num
+
+
+       
         while 1:
             # Opponent's turn
             opponent_move = find_first_valid_placement(board_updated, self.opponent_color)
             if opponent_move == None:
-                return self.opponent_color
+                return self.colour
+            if opp_move_num == MAX_ACTIONS_PER_OPPONENT:
+                return self.colour
             opponent_coords = [opponent_move.c1, opponent_move.c2, opponent_move.c3, opponent_move.c4]
             line_removal(opponent_coords, board_updated, self.opponent_color)
+            opp_move_num += 1
 
             # Your turn
             your_move = find_first_valid_placement(board_updated, self.colour)
             if your_move == None:
                 return self.colour
+            if our_move_num == MAX_ACTIONS_PER_OPPONENT:
+                return self.opponent_color
             your_coords = [your_move.c1, your_move.c2, your_move.c3, your_move.c4]
             line_removal(your_coords, board_updated, self.colour)
-
+            our_move_num += 1
        
     def backpropogate(self, winning_colour):
 
@@ -89,23 +113,13 @@ class Monte_Carlo_Tree_Node:
     def is_leaf_node(self):
         return not self.children_nodes
     
-    # def selection(self):
-    #     current_node = self
-    #     while current_node.children != []:
-            
-    #         # else choose bes uct score
-    #         valid_placements = generate_valid_placements()
-    #         current_node.add_children_nodes(valid_placements)
-    #     for placement in valid_placements:
-    #         current_node
-
 
     def selection(self):
         # Check if this node has unexplored children
         #Consider commenting this shit out
-        # unexplored_children = [child for child in self.children_nodes if child.number_of_visits == 0]
-        # if unexplored_children:
-        #     return unexplored_children[0]  # Choose the first unexplored child
+        unexplored_children = [child for child in self.children_nodes if child.number_of_visits == 0]
+        if unexplored_children:
+            return unexplored_children[0]  # Choose the first unexplored child
 
         # Otherwise, use UCT to select the most promising child
         total_visits = sum(child.number_of_visits for child in self.children_nodes)
@@ -118,6 +132,24 @@ class Monte_Carlo_Tree_Node:
                 best_child = child
         return best_child
     
+    def highest_avg_win_rate_child(self):
+        if not self.children_nodes:
+            return None
+        
+        highest_avg_win_rate = float('-inf')
+        best_child = None
+        
+        for child in self.children_nodes:
+            if child.number_of_visits == 0:
+                continue
+            
+            avg_win_rate = child.total_score / child.number_of_visits
+            if avg_win_rate > highest_avg_win_rate:
+                highest_avg_win_rate = avg_win_rate
+                best_child = child
+        
+        return best_child
+
     
 class Agent:
     def __init__(self, color: PlayerColor, **referee: dict):
@@ -148,8 +180,10 @@ class Agent:
         #Intialise the root node if it hasnt already been
         if self.root_node is None:
             #Double check if the board parsed is the referee board or the 
-            self.root_node = Monte_Carlo_Tree_Node(parent_node=None, action=None, colour=self.color, board=self.board)        
-        
+            self.root_node = Monte_Carlo_Tree_Node(parent_node=None, action=None, colour=self.color, board=self.board)
+
+        print("board:")
+        print(self.board)
         #Place random action if board is empty
         if len(self.root_node.my_board) == 0:
             return PlaceAction(
@@ -168,49 +202,70 @@ class Agent:
 
         # Start with the root node and generate all valid movements as children
         current_node = self.root_node
-        valid_placements = generate_valid_placements(self.root_node.my_board , self.color)
+        valid_placements = generate_valid_placements(self.board, self.color)
         # print("Board")
         # print(self.root_node.my_board)
-        # print("Valid placements")
-        # print(valid_placements)
-        current_node.add_children_nodes(valid_placements , current_node.my_board)
+        print("Valid placements")
+        print(valid_placements)
+        #CHILDREN GENERATION IS STUFFIN MY FUCKIN CODE HERE. MAYBE DONT PARSE SELF.BOARD HERE BUT MAYBE A COPY OF BOARD WITH ACTION
+        temp_board = self.board.copy
+        
+        current_node.add_children_nodes(valid_placements , self.board)
 
+    
         # print("Children: ")
         # print(current_node.children_nodes)
 
-        #Iterate through the children until a leaf node is reached
-        while not current_node.is_leaf_node(): 
-            #Choose the children with the highest UCT score
-            print("Got here!!!!!!")
-            current_node = current_node.selection()
+        #INCLUDE A BUFFER TIME CONSTANT
+        #while round(referee["time_remaining"] / ((MAX_ACTIONS - current_node.my_board.turn_count())/2)) > AVG_SECS_PER_TURN:
+        start_time = time.time()
+        while (time.time() - start_time) < AVG_SECS_PER_TURN:
+            #Iterate through the children until a leaf node is reached
+            while not current_node.is_leaf_node(): 
+                #Choose the children with the highest UCT score
+                #print("Got here!!!!!!")
+                current_node = current_node.selection()
 
-        #Found leaf node, now check if it has been visited (or simulated)
-        if current_node.number_of_visits == 0:
-            #lets Rollout 
-            winning_colour = current_node.rollout()
-            current_node.backpropogate(winning_colour)
-        else:
-            #We to create a new states of games with all the various possible moves of our opponent
-            #First implement action
-            board_w_action = self.board.copy()
-            # Line removal implements action on board and removes lines
-            line_removal(current_node.action, board_w_action, self.color)
-            
-            boards_w_opp = generate_valid_board_states(board_w_action,self.opponent_color)
-            #Create children by generate all the possible actions for those board states with opponents valid moves
-            for board_w_opp in boards_w_opp:
-                valid_placements = generate_valid_placements(board_w_opp, self.color)
-                current_node.add_children_nodes(valid_placements, board_w_opp)
-            
-            #Current node equals first new child node then call the rollout
-            current_node = current_node.selection()
-            #lets rollout
-            winning_colour = current_node.rollout()
-            current_node.backpropogate(winning_colour)
+            #Found leaf node, now check if it has been visited (or simulated)
+            if current_node.number_of_visits == 0:
+                #lets Rollout 
+                winning_colour = current_node.rollout()
+                #print("winning colour")
+                #print(winning_colour)
+                current_node.backpropogate(winning_colour)
 
+                #current_node = current_node.selection()
+                #We need to go back to the root node for the next iteration
+                current_node = self.root_node
 
-
+            else:
+                #We to create a new states of games with all the various possible moves of our opponent
+                #First implement action
+                board_w_action = current_node.my_board.copy()
+                # Line removal implements action on board and removes lines
+                line_removal(current_node.action, board_w_action, self.color)
+                
+                boards_w_opp = generate_valid_board_states(board_w_action,self.opponent_color)
+                #Create children by generate all the possible actions for those board states with opponents valid moves
+                for board_w_opp in boards_w_opp:
+                    valid_placements = generate_valid_placements(board_w_opp, self.color)
+                    current_node.add_children_nodes(valid_placements, board_w_opp)
+                
+                #Current node equals first new child node then call the rollout
+                current_node = current_node.selection()
+                #lets rollout
+                winning_colour = current_node.rollout()
+                current_node.backpropogate(winning_colour)
+                # print("winning colour")
+                # print(winning_colour)
+                #set current node back to root node for next iteration
+                current_node = self.root_node
         
+        best_child = self.root_node.highest_avg_win_rate_child()
+
+        return best_child.action
+        
+
     def update(self, color: PlayerColor, action: Action, **referee: dict):
         # There is only one action type, PlaceAction
         place_action: PlaceAction = action
