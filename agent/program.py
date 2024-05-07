@@ -15,7 +15,7 @@ AVG_SECS_PER_TURN = 2.4    # 180/75
 MAX_ACTIONS = 150
 
 class Monte_Carlo_Tree_Node:
-    def __init__(self, parent_node, action, colour, board:Board):
+    def __init__(self, parent_node, action: PlaceAction, colour, board:Board):
         self.colour = colour
         self.opponent_color = PlayerColor.RED if colour == PlayerColor.BLUE else PlayerColor.BLUE
         self.parent_node = parent_node
@@ -70,7 +70,6 @@ class Monte_Carlo_Tree_Node:
         our_move_num = self.move_num + 1  #We just placed our move
         opp_move_num = self.move_num
 
-
        
         while 1:
             # Opponent's turn
@@ -100,7 +99,6 @@ class Monte_Carlo_Tree_Node:
         if self.colour == winning_colour:
             self.total_score += 1
         
-
         parent_node = self.parent_node
         while parent_node != None:
             #Update the no visited value and score
@@ -150,7 +148,40 @@ class Monte_Carlo_Tree_Node:
         
         return best_child
 
-    
+    def generate_children(self):
+
+        # Create new board states with opponent's moves
+        board_with_action = self.my_board.copy()
+        if self.action is not None:
+            tiles_placed = [self.action.c1, self.action.c2, self.action.c3, self.action.c4]
+            line_removal(tiles_placed, board_with_action, self.colour)
+
+        boards_with_opponent_moves = generate_valid_board_states(board_with_action, self.opponent_color)
+
+         # Generate children nodes for each board state with opponent's moves
+        for board_state in boards_with_opponent_moves:
+            valid_placements = generate_valid_placements(board_state, self.colour)
+            self.add_children_nodes(valid_placements, board_state)
+
+    #This function is different to the normal generate children method as the root node doesnt have an initial action
+    def generate_children_for_root_node(self):
+        
+        #Generate all valid 
+
+        # Create new board states with opponent's moves
+        board_with_action = self.my_board.copy()
+        if self.action is not None:
+            tiles_placed = [self.action.c1, self.action.c2, self.action.c3, self.action.c4]
+            line_removal(tiles_placed, board_with_action, self.colour)
+            
+        boards_with_opponent_moves = generate_valid_board_states(board_with_action, self.opponent_color)
+
+         # Generate children nodes for each board state with opponent's moves
+        for board_state in boards_with_opponent_moves:
+            valid_placements = generate_valid_placements(board_state, self.colour)
+            self.add_children_nodes(valid_placements, board_state)
+
+
 class Agent:
     def __init__(self, color: PlayerColor, **referee: dict):
         """
@@ -192,7 +223,7 @@ class Agent:
                     Coord(2, 5), 
                     Coord(2, 6)
                 )
-        elif is_color_missing(self.root_node.my_board, self.color):
+        elif is_color_missing(self.root_node.my_board, self.color): #No coloured tiles on board initially
             return PlaceAction(
                     Coord(8, 8), 
                     Coord(8, 7), 
@@ -207,11 +238,8 @@ class Agent:
         # print(self.root_node.my_board)
         print("Valid placements")
         print(valid_placements)
-        #CHILDREN GENERATION IS STUFFIN MY FUCKIN CODE HERE. MAYBE DONT PARSE SELF.BOARD HERE BUT MAYBE A COPY OF BOARD WITH ACTION
-        temp_board = self.board.copy
-        
-        current_node.add_children_nodes(valid_placements , self.board)
 
+        current_node.generate_children_for_root_node()
     
         # print("Children: ")
         # print(current_node.children_nodes)
@@ -239,18 +267,8 @@ class Agent:
                 current_node = self.root_node
 
             else:
-                #We to create a new states of games with all the various possible moves of our opponent
-                #First implement action
-                board_w_action = current_node.my_board.copy()
-                # Line removal implements action on board and removes lines
-                line_removal(current_node.action, board_w_action, self.color)
-                
-                boards_w_opp = generate_valid_board_states(board_w_action,self.opponent_color)
-                #Create children by generate all the possible actions for those board states with opponents valid moves
-                for board_w_opp in boards_w_opp:
-                    valid_placements = generate_valid_placements(board_w_opp, self.color)
-                    current_node.add_children_nodes(valid_placements, board_w_opp)
-                
+                current_node.generate_children()
+
                 #Current node equals first new child node then call the rollout
                 current_node = current_node.selection()
                 #lets rollout
