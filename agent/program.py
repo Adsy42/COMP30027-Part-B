@@ -53,8 +53,7 @@ class Monte_Carlo_Tree_Node:
         #Intialise game state by implementing current action
         board_updated = self.my_board.copy()
         
-        actionPlace = [self.action.c1, self.action.c2, self.action.c3, self.action.c4]
-        line_removal(actionPlace, board_updated, self.colour)
+        line_removal(self.action, board_updated, self.colour)
 
         # while board_updated.winner_color() == None:
         #     opponent_move = find_first_valid_placement(board_updated, self.opponent_color)
@@ -78,8 +77,7 @@ class Monte_Carlo_Tree_Node:
                 return self.colour
             if opp_move_num == MAX_ACTIONS_PER_OPPONENT:
                 return self.colour
-            opponent_coords = [opponent_move.c1, opponent_move.c2, opponent_move.c3, opponent_move.c4]
-            line_removal(opponent_coords, board_updated, self.opponent_color)
+            line_removal(opponent_move, board_updated, self.opponent_color)
             opp_move_num += 1
 
             # Your turn
@@ -88,8 +86,7 @@ class Monte_Carlo_Tree_Node:
                 return self.colour
             if our_move_num == MAX_ACTIONS_PER_OPPONENT:
                 return self.opponent_color
-            your_coords = [your_move.c1, your_move.c2, your_move.c3, your_move.c4]
-            line_removal(your_coords, board_updated, self.colour)
+            line_removal(your_move, board_updated, self.colour)
             our_move_num += 1
        
     def backpropogate(self, winning_colour):
@@ -153,8 +150,7 @@ class Monte_Carlo_Tree_Node:
         # Create new board states with opponent's moves
         board_with_action = self.my_board.copy()
         if self.action is not None:
-            tiles_placed = [self.action.c1, self.action.c2, self.action.c3, self.action.c4]
-            line_removal(tiles_placed, board_with_action, self.colour)
+            line_removal(self.action, board_with_action, self.colour)
 
         boards_with_opponent_moves = generate_valid_board_states(board_with_action, self.opponent_color)
 
@@ -166,20 +162,16 @@ class Monte_Carlo_Tree_Node:
     #This function is different to the normal generate children method as the root node doesnt have an initial action
     def generate_children_for_root_node(self):
         
-        #Generate all valid 
+        #Generate all valid placements from current board state
+        board_with_valid_moves = generate_valid_board_states(self.my_board, self.colour)
 
-        # Create new board states with opponent's moves
-        board_with_action = self.my_board.copy()
-        if self.action is not None:
-            tiles_placed = [self.action.c1, self.action.c2, self.action.c3, self.action.c4]
-            line_removal(tiles_placed, board_with_action, self.colour)
-            
-        boards_with_opponent_moves = generate_valid_board_states(board_with_action, self.opponent_color)
-
-         # Generate children nodes for each board state with opponent's moves
-        for board_state in boards_with_opponent_moves:
-            valid_placements = generate_valid_placements(board_state, self.colour)
-            self.add_children_nodes(valid_placements, board_state)
+        for board_with_valid_move in board_with_valid_moves:
+            #Implement opponent move
+            boards_with_opponent_moves = generate_valid_board_states(board_with_valid_move, self.opponent_color)
+            # Generate children nodes for each board state with opponent's moves
+            for board_state in boards_with_opponent_moves:
+                valid_placements = generate_valid_placements(board_state, self.colour)
+                self.add_children_nodes(valid_placements, board_state)
 
 
 class Agent:
@@ -233,16 +225,8 @@ class Agent:
 
         # Start with the root node and generate all valid movements as children
         current_node = self.root_node
-        valid_placements = generate_valid_placements(self.board, self.color)
-        # print("Board")
-        # print(self.root_node.my_board)
-        print("Valid placements")
-        print(valid_placements)
 
-        current_node.generate_children_for_root_node()
-    
-        # print("Children: ")
-        # print(current_node.children_nodes)
+        current_node.generate_children()
 
         #INCLUDE A BUFFER TIME CONSTANT
         #while round(referee["time_remaining"] / ((MAX_ACTIONS - current_node.my_board.turn_count())/2)) > AVG_SECS_PER_TURN:
@@ -251,7 +235,6 @@ class Agent:
             #Iterate through the children until a leaf node is reached
             while not current_node.is_leaf_node(): 
                 #Choose the children with the highest UCT score
-                #print("Got here!!!!!!")
                 current_node = current_node.selection()
 
             #Found leaf node, now check if it has been visited (or simulated)
@@ -280,6 +263,7 @@ class Agent:
                 current_node = self.root_node
         
         best_child = self.root_node.highest_avg_win_rate_child()
+        
 
         return best_child.action
         
@@ -287,8 +271,8 @@ class Agent:
     def update(self, color: PlayerColor, action: Action, **referee: dict):
         # There is only one action type, PlaceAction
         place_action: PlaceAction = action
-        list_coords = [place_action.c1,place_action.c2,place_action.c3,place_action.c4]
-        _,_,_=line_removal(list_coords,self.board, self.color)
+        #list_coords = [place_action.c1,place_action.c2,place_action.c3,place_action.c4]
+        _,_,_=line_removal(place_action,self.board, self.color)
         for action in place_action.coords:
             self.board[action] = color
 
@@ -324,7 +308,7 @@ def generate_valid_board_states(board: dict[Coord, PlayerColor], my_player_colou
                             updated_board = board.copy()
                             
                             # Call line removal to update the board
-                            line_removal(potential_coord.coords, updated_board, my_player_colour)
+                            line_removal(PlaceAction(*potential_coord.coords), updated_board, my_player_colour)
                             
                             # Add the updated board state to the result
                             valid_board_states.append(updated_board)
@@ -362,8 +346,10 @@ def find_first_valid_placement(board: dict[Coord], my_player_colour: PlayerColor
                         if board._state[coord + direction] 
         except IllegalActionException:"""
 
-#Modified line removal to parse in player colour
-def line_removal(tiles_placed: list[Coord], board: dict[Coord, PlayerColor], color: PlayerColor):
+#Modified line removal to parse in player colour and PlaceAction rather than a list of Coords
+def line_removal(action: PlaceAction, board: dict[Coord, PlayerColor], color: PlayerColor):
+
+    tiles_placed = [action.c1, action.c2, action.c3, action.c4]
 
     MAX_LINE_LENGTH = 11
 
