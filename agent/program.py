@@ -62,7 +62,7 @@ class Agent:
                         Coord(5, 6)
                     )
         else:
-            for i in range(2000):
+            for i in range(50):
                 valid_placement = generate_valid_placements(self.board,self.color)
             return valid_placement[0]
         
