@@ -29,19 +29,6 @@ class BitBoard:
         """Converts a bit index back to (row, column) coordinates."""
         return bitindex // BOARD_N, bitindex % BOARD_N
 
-    @staticmethod
-    def create_piece_in_position(piece: PieceType, bitindex:int) -> int:
-        """Returns a bitboard representation for a given piece placed at a specific (row, column)."""
-        bitboard = 0
-        offsets = _TEMPLATES[piece]
-        row, column = bitindex // BOARD_N, bitindex % BOARD_N
-        for offset in offsets:
-            x = (row + offset.r) % BOARD_N
-            y = (column + offset.c) % BOARD_N
-            bit_index = BitBoard.get_bit_index(x, y)
-            bitboard |= (1 << bit_index)
-        return bitboard
-
     def generate_valid_pieces(self, bitindex: int) -> list:
         """Returns a set of bitboards representing valid pieces that can be placed on the board."""
         row, column = bitindex // BOARD_N, bitindex % BOARD_N
@@ -69,7 +56,7 @@ class BitBoard:
             return list(adjacent_empty_cells)
 
     @staticmethod
-    def bitboard_piece_to_placeaction(bitboard_piece_position):
+    def bitboard_piece_to_placeaction(bitboard_piece_position) -> PlaceAction:
         """Returns a list of (row, column) tuples for each bit set to 1 in the bitboard."""
         coordinates = []
         for index in range(BOARD_N * BOARD_N):  # Assuming a square board
@@ -79,6 +66,28 @@ class BitBoard:
                 coordinates.append(Coord(r=row, c=column))
         
         return PlaceAction(*coordinates)
+    
+    def apply_bit_action(self, player_colour, bitboard_piece_position):
+        if not (bitboard_piece_position & self.Boards['combined']):
+            self.Boards[player_colour] |= bitboard_piece_position
+            self.tiles[player_colour] += TILES_LEN
+            self.Boards['combined'] |= bitboard_piece_position
+            removed_lines = self.lines_removed()
+            self.remove_lines(removed_lines[0], removed_lines[1])
+        self.turns_played += 1
+
+    def place_action_to_bitboard(self, action: PlaceAction) -> int:
+        """
+        Converts a PlaceAction to a bitboard representation where each bit set to 1
+        represents a tile placed on the board.
+        """
+        bitboard = 0
+        for coord in action.coords:
+            if 0 <= coord.r < BOARD_N and 0 <= coord.c < BOARD_N:
+                bit_index = self.get_bit_index(coord.r, coord.c)
+                bitboard |= (1 << bit_index)
+        return bitboard
+
 
     def count_bits(self, number: int) -> int:
         """Counts the number of 1s in the binary representation of the number."""
@@ -100,6 +109,7 @@ class BitBoard:
             self.Boards['combined'] |= bitboard_piece_position
             removed_lines = self.lines_removed()
             self.remove_lines(removed_lines[0], removed_lines[1])
+        self.turns_played += 1
 
     
     def remove_lines(self, rows: list[int], columns: list[int]):
@@ -122,12 +132,12 @@ class BitBoard:
             return 'b'
         return None
 
-    def render(self, use_color=False, use_unicode=False) -> str:
+    def render(self, use_color=True, use_unicode=True) -> str:
         """
         Returns a visualization of the game board as a multiline string, with
         optional ANSI color codes and Unicode characters (if applicable).
         """
-        def apply_ansi(str, bold=True, color=None):
+        def apply_ansi(str, bold=True, color=True):
             bold_code = "\033[1m" if bold else ""
             color_code = ""
             if color == "r":
@@ -156,3 +166,17 @@ class BitBoard:
     def board_control(self, player_colour: PlayerColor):
         control = self.tiles[PlayerColor.RED] - self.tiles[PlayerColor.BLUE]
         return -1 * control if player_colour == PlayerColor.BLUE else control
+    
+    def copy(self):
+        new_board = BitBoard()
+        new_board.Boards = self.Boards.copy()
+        new_board.tiles = self.tiles.copy()
+        new_board.turns_played = self.turns_played
+        return new_board
+    
+    def action_to_bitboard(self, action: PlaceAction) -> int:
+        bitboard = 0
+        for coord in action.coords:
+            bit_index = self.get_bit_index(coord.r, coord.c)
+            bitboard |= (1 << bit_index)
+        return bitboard

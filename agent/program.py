@@ -1,11 +1,19 @@
 # COMP30024 Artificial Intelligence, Semester 1 2024
 # Project Part B: Game Playing Agent
-
+# python -m referee agent agent
+from random import choice
 from referee.game import PlayerColor, Action, PlaceAction, Coord
 from agent.bitboard import BitBoard
 import cProfile
 import pstats
+from wwww import Monte_Carlo_Tree_Node
 import io
+import time
+
+EXPLORATION_CONSTANT = 1.41
+MAX_ACTIONS_PER_OPPONENT = 75
+AVG_SECS_PER_TURN = 2.4  
+MAX_ACTIONS = 75
 
 def profiled_function(func):
     def wrapper(*args, **kwargs):
@@ -21,77 +29,73 @@ def profiled_function(func):
         return result
     return wrapper
 
-
 class Agent:
-    """
-    This class is the "entry point" for your agent, providing an interface to
-    respond to various Tetress game events.
-    """
-
     def __init__(self, color: PlayerColor, **referee: dict):
-        """
-        This constructor method runs when the referee instantiates the agent.
-        Any setup and/or precomputation should be done here.
-        """
         self._color = color
-        self._board:BitBoard = BitBoard()
-        match color:
-            case PlayerColor.RED:
-                print("Testing: I am playing as RED")
-            case PlayerColor.BLUE:
-                print("Testing: I am playing as BLUE")
+        self._root:Monte_Carlo_Tree_Node = None
 
-    @profiled_function
     def action(self, **referee: dict) -> Action:
-        """
-        This method is called by the referee each time it is the agent's turn
-        to take an action. It must always return an action object. 
-        """
-        if self._board.Boards[self._color] == 0:
-            if self._color == PlayerColor.RED:
-                print("Testing: RED is playing a PLACE action")
-                return PlaceAction(
-                    Coord(3, 3), 
-                    Coord(3, 4), 
-                    Coord(4, 3), 
-                    Coord(4, 4)
-                )
-            elif self._color == PlayerColor.BLUE:
-                print("Testing: BLUE is playing a PLACE action")
-                return PlaceAction(
-                    Coord(2, 3), 
-                    Coord(2, 4), 
-                    Coord(2, 5), 
-                    Coord(2, 6)
-                )
-        # Below we have hardcoded two actions to be played depending on whether
-        # the agent is playing as BLUE or RED. Obviously this won't work beyond
-        # the initial moves of the game, so you should use some game playing
-        # technique(s) to determine the best action to take.
-        """Attempts to find an empty cell, generate a valid piece, and apply it."""
-        empty_cells = self._board.empty_adjacent_cells(self._color)
-        if not empty_cells:
-            return False  # No empty cells available
-        for i in range(20000):
-            for empty_cell in empty_cells:
-                valid_pieces = self._board.generate_valid_pieces(empty_cell)
-                if valid_pieces:
-                    valid_piece = valid_pieces[0]  # Check if there are any valid pieces to place
-        return self._board.bitboard_piece_to_placeaction(valid_piece)
+        if not self._root or not self._root.my_board.Boards[self._color]:
+            initial_action = self.get_initial_action()
+            return initial_action
 
-    def update(self, color: PlayerColor, action: Action, **referee: dict):
-        self._board.apply_action(action, color)
+        if not self._root.children_nodes:
+            self._root.generate_children()
 
-        """
-        This method is called by the referee after an agent has taken their
-        turn. You should use it to update the agent's internal game state. 
-        """
+        best_move = self.mcts_select_best_move()
+        self._root = best_move  
+        return BitBoard.bitboard_piece_to_placeaction(best_move.action)  # Assuming conversion
+        
+    def get_initial_action(self):
+        initial_board = BitBoard()        
+        if self._color == PlayerColor.RED:
+            action = PlaceAction(Coord(3, 3), Coord(3, 4), Coord(4, 3), Coord(4, 4))
+        else:
+            action = PlaceAction(Coord(2, 3), Coord(2, 4), Coord(2, 5), Coord(2, 6))
 
-        # There is only one action type, PlaceAction
-        place_action: PlaceAction = action
-        c1, c2, c3, c4 = place_action.coords
+        if self._root:
+            self._root.my_board.apply_action(action, self._color)
+        else:
+            initial_board.apply_action(action, self._color)
+            self._root = Monte_Carlo_Tree_Node(None, None, self._color, initial_board)
 
-        # Here we are just printing out the PlaceAction coordinates for
-        # demonstration purposes. You should replace this with your own logic
-        # to update your agent's internal game state representation.
-        print(f"Testing: {color} played PLACE action: {c1}, {c2}, {c3}, {c4}")
+        return action
+    
+    def mcts_select_best_move(self):
+        start_time = time.time()
+        while time.time() - start_time < AVG_SECS_PER_TURN:
+            leaf_node = self.traverse(self._root)
+            simulation_result = leaf_node.rollout()
+            leaf_node.backpropagate(simulation_result)
+        return self._root.best_child()
+    
+
+    def traverse(self, node):
+        current_node:Monte_Carlo_Tree_Node = node
+        while not current_node.is_leaf_node():
+            current_node = current_node.selection()
+        return current_node
+    
+    def update(self, color: PlayerColor, action: PlaceAction, **referee: dict):
+        # Check if the action comes from the opponent
+        if color != self._color:
+            # Check if the root has been initialized
+            if not self._root:
+                new_board = BitBoard()
+                new_board.apply_action(action, color)
+                self._root = Monte_Carlo_Tree_Node(None, None, self._color, new_board)
+                return
+
+            bitboard_action = self._root.my_board.action_to_bitboard(action)
+            found_child = next((child for child in self._root.children_nodes if child.action == bitboard_action), None)
+
+            if found_child:
+                # If a corresponding child node is found, update the root to this child
+                self._root = found_child
+            else:
+                # If no corresponding child node is found, we assume that this part of the tree has not been explored.
+                # Create a new board state by copying the root's board and applying the action
+                new_board = self._root.my_board.copy()
+                new_board.apply_bit_action(color, bitboard_action)
+                # Initialize a new Monte Carlo Tree Node as the new root with this updated board state
+                self._root = Monte_Carlo_Tree_Node(None, None, self._color, new_board)
