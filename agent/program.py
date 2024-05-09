@@ -33,6 +33,7 @@ class Agent:
     def __init__(self, color: PlayerColor, **referee: dict):
         self._color = color
         self._root:Monte_Carlo_Tree_Node = None
+        print(f"IM {color} GONNA OBLITERATE!")
 
     def action(self, **referee: dict) -> Action:
         if not self._root or not self._root.my_board.Boards[self._color]:
@@ -89,6 +90,7 @@ class Agent:
             bitboard_action = self._root.my_board.action_to_bitboard(action)
             found_child = next((child for child in self._root.children_nodes if child.action == bitboard_action), None)
 
+            print(f"NEW MONTE_CARLO: {found_child}")
             if found_child:
                 # If a corresponding child node is found, update the root to this child
                 self._root = found_child
