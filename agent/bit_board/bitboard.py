@@ -37,7 +37,6 @@ class BitBoard:
             if pieces:
                 return choice(pieces)
 
-
     def best_valid_piece(self, player_colour: PlayerColor, num_best: int = 1) -> int:
         """Returns the bitboard representation of the valid piece that maximizes the player's score."""
         empty_cells = self.empty_adjacent_cells(player_colour=player_colour)
@@ -103,24 +102,19 @@ class BitBoard:
 
     def find_empty_adjacent_cells_from_piece(self, piece_bitboard: int) -> list:
         """Returns a list of bit indexes representing empty adjacent cells to the given piece bitboard."""
-        adjacent_positions = []
+        adjacent_positions = set()
+        limit = 0
         # Iterate over each bit in the piece_bitboard
         for bit_index in range(BOARD_N * BOARD_N):
+            if limit == 4:
+                break
             if piece_bitboard & (1 << bit_index):
-                row = bit_index // BOARD_N
-                column = bit_index % BOARD_N
-                # Directions: [up, down, left, right]
-                directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-                for direction in directions:
-                    adj_row = row + direction[0]
-                    adj_column = column + direction[1]
-                    if 0 <= adj_row < BOARD_N and 0 <= adj_column < BOARD_N:
-                        adj_index = self.get_bit_index(adj_row, adj_column)
-                        # Check if the adjacent cell is empty
-                        if not (self.Boards['combined'] & (1 << adj_index)):
-                            if adj_index not in adjacent_positions:  # Check to avoid duplicates
-                                adjacent_positions.append(adj_index)
-
+                limit += 1
+                adjacent_cells = adjacent_bitboards[bit_index]
+                empty_cells = adjacent_cells & ~self.Boards['combined']
+                for shift in range(BOARD_N**2):
+                    if empty_cells & (1 << shift):
+                        adjacent_positions.add(shift)
         return adjacent_positions
 
 
@@ -255,18 +249,3 @@ class BitBoard:
             opponent_score += len(opponent_pieces)
 
         return (copy_board.tiles[player_colour] - copy_board.tiles[opponent_colour]) + (my_score - opponent_score)
-    
-    
-        # Count valid pieces for the player
-        my_empty_cells = copy_board.empty_adjacent_cells(player_colour)
-        for empty_cell in my_empty_cells:
-            my_pieces = copy_board.generate_valid_pieces(empty_cell)
-            my_score += len(my_pieces)
-
-        # Count valid pieces for the opponent
-        opponent_empty_cells = copy_board.empty_adjacent_cells(opponent_colour)
-        for empty_cell in opponent_empty_cells:
-            opponent_pieces = copy_board.generate_valid_pieces(empty_cell)
-            opponent_score += len(opponent_pieces)
-        
-        return (my_score - opponent_score) #+ (copy_board.tiles[player_colour] - copy_board.tiles[opponent_colour])
