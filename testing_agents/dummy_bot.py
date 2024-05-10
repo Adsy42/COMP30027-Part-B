@@ -1,11 +1,9 @@
 from random import choice
+from agent.bit_board.bitboard import BitBoard
 from referee.game import PlayerColor, Action, PlaceAction, Coord
-from agent.bitboard import BitBoard
-import cProfile
-import pstats
-from wwww import Monte_Carlo_Tree_Node
-import io
-import time
+from referee.game.constants import BOARD_N
+from agent.monte_carlo import Monte_Carlo_Tree_Node
+from agent.bit_board.precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
 # python -m referee agent.program agent.dummy_bot
 
 EXPLORATION_CONSTANT = 1.41
@@ -54,19 +52,28 @@ class Agent:
                     Coord(2, 5), 
                     Coord(2, 6)
                 )
-        # Below we have hardcoded two actions to be played depending on whether
-        # the agent is playing as BLUE or RED. Obviously this won't work beyond
-        # the initial moves of the game, so you should use some game playing
-        # technique(s) to determine the best action to take.
         """Attempts to find an empty cell, generate a valid piece, and apply it."""
-        empty_cells = self._board.empty_adjacent_cells(self._color)
-        if not empty_cells:
-            return False  # No empty cells available
+        best_piece = self._board.best_valid_piece(self._color)
+
+        empty_cells = self._board.empty_adjacent_cells(player_colour=self._color)
+        valid_pieces = []
         for empty_cell in empty_cells:
-            valid_pieces = self._board.generate_valid_pieces(empty_cell)
-            if valid_pieces:
-                valid_piece = valid_pieces[0]  # Check if there are any valid pieces to place
-        return self._board.bitboard_piece_to_placeaction(valid_piece)
+            valid_pieces.extend(self._board.generate_valid_pieces(empty_cell))
+
+        return BitBoard.bitboard_piece_to_placeaction(choice(valid_pieces))
+# row, column = empty_cell // BOARD_N, empty_cell % BOARD_N
+# highest_score = float('-inf')
+
+# for positions in bitboards_pre_computed.values():
+#     piece_position = positions[(row, column)]
+#     if not (piece_position & self.Boards['combined']):
+#         score = self.scoring(piece_position, player_colour)
+#         if score > highest_score:
+#             highest_score = score
+#             best_piece = piece_position
+# return best_piece
+
+# return BitBoard.bitboard_piece_to_placeaction(best_piece)
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):
         self._board.apply_action(action, color)

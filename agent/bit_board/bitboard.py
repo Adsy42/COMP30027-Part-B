@@ -1,9 +1,8 @@
 from referee.game.constants import BOARD_N
 from referee.game.player import PlayerColor
-from referee.game.pieces import _TEMPLATES, PieceType
 from referee.game.actions import PlaceAction
 from referee.game.coord import Coord
-from agent.precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
+from .precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
 
 
 BOARD_N = 11
@@ -24,17 +23,30 @@ class BitBoard:
         """Converts (row, column) coordinate to the bit position in the bitboard, zero-indexed."""
         return (row * BOARD_N) + column
 
-    @staticmethod
-    def get_coord(bitindex: int):
-        """Converts a bit index back to (row, column) coordinates."""
-        return bitindex // BOARD_N, bitindex % BOARD_N
-
     def generate_valid_pieces(self, bitindex: int) -> list:
         """Returns a set of bitboards representing valid pieces that can be placed on the board."""
         row, column = bitindex // BOARD_N, bitindex % BOARD_N
         return [positions[(row, column)]
                 for positions in bitboards_pre_computed.values()
                 if not (positions[(row, column)] & self.Boards['combined'])]
+    
+
+    def best_valid_piece(self, player_colour: PlayerColor) -> int:
+        """Returns the bitboard representation of the valid piece that maximizes the player's score."""
+        empty_cells = self.empty_adjacent_cells(player_colour=player_colour)
+        best_piece = None
+        for empty_cell in empty_cells:
+            row, column = empty_cell // BOARD_N, empty_cell % BOARD_N
+            highest_score = float('-inf')
+
+            for positions in bitboards_pre_computed.values():
+                piece_position = positions[(row, column)]
+                if not (piece_position & self.Boards['combined']):
+                    score = self.scoring(piece_position, player_colour)
+                    if score > highest_score:
+                        highest_score = score
+                        best_piece = piece_position
+        return best_piece
 
     def lines_removed(self):
         row_checks = [idx for idx, row_bb in enumerate(full_rows)
@@ -66,28 +78,6 @@ class BitBoard:
                 coordinates.append(Coord(r=row, c=column))
         
         return PlaceAction(*coordinates)
-    
-    def apply_bit_action(self, player_colour, bitboard_piece_position):
-        if not (bitboard_piece_position & self.Boards['combined']):
-            self.Boards[player_colour] |= bitboard_piece_position
-            self.tiles[player_colour] += TILES_LEN
-            self.Boards['combined'] |= bitboard_piece_position
-            removed_lines = self.lines_removed()
-            self.remove_lines(removed_lines[0], removed_lines[1])
-        self.turns_played += 1
-
-    def place_action_to_bitboard(self, action: PlaceAction) -> int:
-        """
-        Converts a PlaceAction to a bitboard representation where each bit set to 1
-        represents a tile placed on the board.
-        """
-        bitboard = 0
-        for coord in action.coords:
-            if 0 <= coord.r < BOARD_N and 0 <= coord.c < BOARD_N:
-                bit_index = self.get_bit_index(coord.r, coord.c)
-                bitboard |= (1 << bit_index)
-        return bitboard
-
 
     def count_bits(self, number: int) -> int:
         """Counts the number of 1s in the binary representation of the number."""
@@ -96,21 +86,6 @@ class BitBoard:
             count += number & 1
             number >>= 1
         return count
-
-    def apply_action(self, action: PlaceAction, player_colour: PlayerColor):
-        bitboard_piece_position = 0
-        for coord in action.coords:
-            bitindex = self.get_bit_index(coord.r, coord.c)
-            bitboard_piece_position |= (1 << bitindex)
-
-        if not (bitboard_piece_position & self.Boards['combined']):
-            self.Boards[player_colour] |= bitboard_piece_position
-            self.tiles[player_colour] += TILES_LEN
-            self.Boards['combined'] |= bitboard_piece_position
-            removed_lines = self.lines_removed()
-            self.remove_lines(removed_lines[0], removed_lines[1])
-        self.turns_played += 1
-
     
     def remove_lines(self, rows: list[int], columns: list[int]):
         for color in [PlayerColor.RED, PlayerColor.BLUE]:
@@ -174,9 +149,53 @@ class BitBoard:
         new_board.turns_played = self.turns_played
         return new_board
     
+    
+    def apply_action(self, action: PlaceAction, player_colour: PlayerColor, bit_board: bool = False):
+        if not bit_board:
+            bitboard_piece_position = 0
+            for coord in action.coords:
+                bitindex = self.get_bit_index(coord.r, coord.c)
+                bitboard_piece_position |= (1 << bitindex)
+        else:
+            bitboard_piece_position = action
+        
+        if not (bitboard_piece_position & self.Boards['combined']):
+            self.Boards[player_colour] |= bitboard_piece_position
+            self.tiles[player_colour] += TILES_LEN
+            self.Boards['combined'] |= bitboard_piece_position
+            removed_lines = self.lines_removed()
+            self.remove_lines(removed_lines[0], removed_lines[1])
+        self.turns_played += 1
+
     def action_to_bitboard(self, action: PlaceAction) -> int:
-        bitboard = 0
-        for coord in action.coords:
-            bit_index = self.get_bit_index(coord.r, coord.c)
-            bitboard |= (1 << bit_index)
-        return bitboard
+            bitboard = 0
+            for coord in action.coords:
+                bit_index = self.get_bit_index(coord.r, coord.c)
+                bitboard |= (1 << bit_index)
+            return bitboard
+    
+    def scoring(self, action: int, player_colour: PlayerColor) -> int:
+        opponent_colour = PlayerColor.RED if player_colour == PlayerColor.BLUE else PlayerColor.BLUE
+        my_score = 0
+        opponent_score = 0
+
+        copy_board = self.copy()
+        copy_board.apply_action(action, player_colour, bit_board=True)
+        remove_lines = copy_board.lines_removed()
+        copy_board.remove_lines(remove_lines[0], remove_lines[1])
+        return copy_board.tiles[player_colour] - copy_board.tiles[opponent_colour]
+    # TOO COSTLY add that in report
+    
+        # Count valid pieces for the player
+        my_empty_cells = copy_board.empty_adjacent_cells(player_colour)
+        for empty_cell in my_empty_cells:
+            my_pieces = copy_board.generate_valid_pieces(empty_cell)
+            my_score += len(my_pieces)
+
+        # Count valid pieces for the opponent
+        opponent_empty_cells = copy_board.empty_adjacent_cells(opponent_colour)
+        for empty_cell in opponent_empty_cells:
+            opponent_pieces = copy_board.generate_valid_pieces(empty_cell)
+            opponent_score += len(opponent_pieces)
+        
+        return (my_score - opponent_score) #+ (copy_board.tiles[player_colour] - copy_board.tiles[opponent_colour])

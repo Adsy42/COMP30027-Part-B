@@ -1,13 +1,9 @@
 # COMP30024 Artificial Intelligence, Semester 1 2024
 # Project Part B: Game Playing Agent
 # python -m referee agent agent
-from random import choice
 from referee.game import PlayerColor, Action, PlaceAction, Coord
-from agent.bitboard import BitBoard
-import cProfile
-import pstats
-from wwww import Monte_Carlo_Tree_Node
-import io
+from .bit_board.bitboard import BitBoard
+from agent.monte_carlo import Monte_Carlo_Tree_Node 
 import time
 
 EXPLORATION_CONSTANT = 1.41
@@ -15,89 +11,91 @@ MAX_ACTIONS_PER_OPPONENT = 75
 AVG_SECS_PER_TURN = 2.4  
 MAX_ACTIONS = 75
 
-def profiled_function(func):
-    def wrapper(*args, **kwargs):
-        profiler = cProfile.Profile()
-        profiler.enable()
-        result = func(*args, **kwargs)
-        profiler.disable()
-        s = io.StringIO()
-        sortby = 'cumulative'
-        ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
-        ps.print_stats()
-        print(s.getvalue())
-        return result
-    return wrapper
 
 class Agent:
     def __init__(self, color: PlayerColor, **referee: dict):
         self._color = color
-        self._root:Monte_Carlo_Tree_Node = None
+        self.board = BitBoard() 
+        self.played = False
         print(f"IM {color} GONNA OBLITERATE!")
 
     def action(self, **referee: dict) -> Action:
-        if not self._root or not self._root.my_board.Boards[self._color]:
-            initial_action = self.get_initial_action()
-            return initial_action
-
-        if not self._root.children_nodes:
-            self._root.generate_children()
-
-        best_move = self.mcts_select_best_move()
-        self._root = best_move  
-        return BitBoard.bitboard_piece_to_placeaction(best_move.action)  # Assuming conversion
+        if not self.played:
+            self.played = True
+            if self._color == PlayerColor.RED:
+                print("Testing: RED is playing a PLACE action")
+                return PlaceAction(
+                    Coord(3, 3), 
+                    Coord(3, 4), 
+                    Coord(4, 3), 
+                    Coord(4, 4)
+                )
+            elif self._color == PlayerColor.BLUE:
+                print("Testing: BLUE is playing a PLACE action")
+                return PlaceAction(
+                    Coord(2, 3), 
+                    Coord(2, 4), 
+                    Coord(2, 5), 
+                    Coord(2, 6)
+                )
+        self._root = Monte_Carlo_Tree_Node(None, None, self._color, self.board.copy())
         
-    def get_initial_action(self):
-        initial_board = BitBoard()        
-        if self._color == PlayerColor.RED:
-            action = PlaceAction(Coord(3, 3), Coord(3, 4), Coord(4, 3), Coord(4, 4))
-        else:
-            action = PlaceAction(Coord(2, 3), Coord(2, 4), Coord(2, 5), Coord(2, 6))
-
-        if self._root:
-            self._root.my_board.apply_action(action, self._color)
-        else:
-            initial_board.apply_action(action, self._color)
-            self._root = Monte_Carlo_Tree_Node(None, None, self._color, initial_board)
-
-        return action
+        self._root.generate_children()
+        self._root.my_board.render()
+        best_move = self.mcts_select_best_move()
+        self.print_tree_actions(self._root)
+        self._root = None 
+        return BitBoard.bitboard_piece_to_placeaction(best_move.action)
     
     def mcts_select_best_move(self):
         start_time = time.time()
+        simulation_count = 0
         while time.time() - start_time < AVG_SECS_PER_TURN:
             leaf_node = self.traverse(self._root)
             simulation_result = leaf_node.rollout()
             leaf_node.backpropagate(simulation_result)
+            simulation_count += 1
+        print(f"Total simulations conducted in this round: {simulation_count}")
         return self._root.best_child()
-    
 
     def traverse(self, node):
-        current_node:Monte_Carlo_Tree_Node = node
+        current_node = node
         while not current_node.is_leaf_node():
             current_node = current_node.selection()
+
+        if current_node.number_of_visits == 0:
+            # Switch to the opponent's color for the next move
+            next_colour = PlayerColor.RED if current_node.colour == PlayerColor.BLUE else PlayerColor.BLUE
+            best_piece = current_node.my_board.best_valid_piece(next_colour)
+            
+            if best_piece is not None:
+                # Copy the board and apply the best action found
+                new_board = current_node.my_board.copy()
+                new_board.apply_action(best_piece, next_colour, True)  # Ensure apply_action args are correct
+                new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board)
+                current_node.children_nodes.append(new_child)
+                current_node = new_child
+            else:
+                print("No valid moves found; this node is a terminal node.")
+        
         return current_node
+
     
     def update(self, color: PlayerColor, action: PlaceAction, **referee: dict):
-        # Check if the action comes from the opponent
-        if color != self._color:
-            # Check if the root has been initialized
-            if not self._root:
-                new_board = BitBoard()
-                new_board.apply_action(action, color)
-                self._root = Monte_Carlo_Tree_Node(None, None, self._color, new_board)
-                return
+        self.board.apply_action(action=action, player_colour=color)
+       
+    def print_tree_actions(self, node, depth=0):
+        """
+        Recursively prints the action for each node in the Monte Carlo tree.
 
-            bitboard_action = self._root.my_board.action_to_bitboard(action)
-            found_child = next((child for child in self._root.children_nodes if child.action == bitboard_action), None)
+        Parameters:
+            node (Monte_Carlo_Tree_Node): The current node in the tree.
+            depth (int): The current depth in the tree, used for indentation to visualize tree structure.
+        """
+        # Print the current node's action, indenting based on the depth in the tree
+        indent = "  " * depth  # Indentation based on the depth of the node
+        print(f"{indent}Action: {node.action}, Colour: {node.colour}, Visits: {node.number_of_visits}, Score: {node.total_score}, Depth: {depth}")
 
-            print(f"NEW MONTE_CARLO: {found_child}")
-            if found_child:
-                # If a corresponding child node is found, update the root to this child
-                self._root = found_child
-            else:
-                # If no corresponding child node is found, we assume that this part of the tree has not been explored.
-                # Create a new board state by copying the root's board and applying the action
-                new_board = self._root.my_board.copy()
-                new_board.apply_bit_action(color, bitboard_action)
-                # Initialize a new Monte Carlo Tree Node as the new root with this updated board state
-                self._root = Monte_Carlo_Tree_Node(None, None, self._color, new_board)
+        # Recursively call this function for all child nodes
+        for child in node.children_nodes:
+            self.print_tree_actions(child, depth + 1)

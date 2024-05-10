@@ -1,13 +1,11 @@
 from math import log, sqrt
 import time
-from agent.bitboard import BitBoard
-from referee.game.actions import PlaceAction
+from .bit_board.bitboard import BitBoard
 from referee.game.player import PlayerColor
-from random import choice
+from referee.game.constants import MAX_TURNS
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
 AVG_SECS_PER_TURN = 2.4  
-MAX_ACTIONS = 150
 
 class Monte_Carlo_Tree_Node:
     def __init__(self, parent_node, action: int, colour, board: BitBoard):
@@ -22,22 +20,15 @@ class Monte_Carlo_Tree_Node:
     def rollout(self):
         current_board = self.my_board.copy()
         current_color = PlayerColor.RED if self.colour == PlayerColor.BLUE else PlayerColor.BLUE
-        moves_made = 0
 
         start_time = time.time()
         while time.time() - start_time < AVG_SECS_PER_TURN:
-            valid_cells = current_board.empty_adjacent_cells(current_color)
-            if not valid_cells:
-                break
-            
-            valid_pieces = [piece for cell in valid_cells for piece in current_board.generate_valid_pieces(cell)]
-            if valid_pieces:
-                current_board.apply_bit_action(current_color, choice(valid_pieces))
+            best_piece = current_board.best_valid_piece(self.colour)
+            if best_piece:
+                current_board.apply_action(player_colour=current_color, action=best_piece, bit_board=True)
             else:
                 break
-
             current_color = PlayerColor.RED if current_color == PlayerColor.BLUE else PlayerColor.BLUE
-            moves_made += 1
 
         if current_board.turns_played == 150:
             red_score = current_board.tiles[PlayerColor.RED]
@@ -75,7 +66,7 @@ class Monte_Carlo_Tree_Node:
                 valid_pieces = self.my_board.generate_valid_pieces(cell_index)
                 for piece in valid_pieces:
                     new_board = self.my_board.copy()
-                    new_board.apply_bit_action(self.colour, piece)
+                    new_board.apply_action(player_colour=self.colour, action=piece, bit_board=True)
                     new_node = Monte_Carlo_Tree_Node(self, piece, self.colour, new_board)
                     self.children_nodes.append(new_node)
 

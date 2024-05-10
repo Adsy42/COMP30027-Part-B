@@ -1,19 +1,10 @@
 from referee.game.constants import BOARD_N
-from referee.game.pieces import _TEMPLATES, PieceType
+from referee.game.coord import Coord
+from referee.game.pieces import _TEMPLATES, create_piece
 from collections import defaultdict
 
 def get_bit_index(row, column):
     return (row * BOARD_N) + column
-
-def create_piece_bitboard(piece, origin_row, origin_col):
-    bitboard = 0
-    offsets = _TEMPLATES[piece]
-    for offset in offsets:
-        x = (origin_row + offset.r) % BOARD_N
-        y = (origin_col + offset.c) % BOARD_N
-        bit_index = get_bit_index(x, y)
-        bitboard |= (1 << bit_index)
-    return bitboard
 
 def precompute_adjacent_bitboards():
     adjacent_bitboards = {}
@@ -35,19 +26,24 @@ def precompute_full_rows_columns():
 
 def precompute_bitboards():
     piece_bitboards = defaultdict(dict)
-    for piece in PieceType:
+    for piece_type in _TEMPLATES.keys():
         for row in range(BOARD_N):
             for col in range(BOARD_N):
-                bitboard = create_piece_bitboard(piece, row, col)
-                piece_bitboards[piece][(row, col)] = bitboard
+                piece = create_piece(piece_type, Coord(r=row, c=col))
+                bitboard_piece_position = 0
+                for coord in piece.coords:
+                    bitindex = get_bit_index(coord.r, coord.c)
+                    bitboard_piece_position |= (1 << bitindex)
+                # Change here: Use piece_type as the key, not the piece object
+                piece_bitboards[piece_type][(row, col)] = bitboard_piece_position
     return piece_bitboards
 
 def save_bitboards_to_python_file(bitboards, adjacent_bitboards, full_rows, full_columns, filename="precomputed_bitboards.py"):
     with open(filename, 'w') as file:
         file.write("from referee.game.pieces import PieceType\n\n")
         file.write("bitboards = {\n")
-        for piece, boards in bitboards.items():
-            file.write(f"    PieceType.{piece.name}: {{\n")
+        for piece_type, boards in bitboards.items():
+            file.write(f"    PieceType.{piece_type.name}: {{\n")
             for (row, col), bitboard in boards.items():
                 file.write(f"        ({row}, {col}): {bitboard},\n")
             file.write("    },\n")

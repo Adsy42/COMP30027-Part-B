@@ -2,4 +2,3 @@
 # Project Part B: Game Playing Agent
 
 from .program import Agent
-from .bitboard import BitBoard
