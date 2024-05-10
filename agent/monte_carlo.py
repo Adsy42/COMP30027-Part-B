@@ -61,14 +61,12 @@ class Monte_Carlo_Tree_Node:
 
     def generate_children(self):
         if not self.children_nodes:
-            empty_cells = self.my_board.empty_adjacent_cells(self.colour)
-            for cell_index in empty_cells:
-                valid_pieces = self.my_board.generate_valid_pieces(cell_index)
-                for piece in valid_pieces:
-                    new_board = self.my_board.copy()
-                    new_board.apply_action(player_colour=self.colour, action=piece, bit_board=True)
-                    new_node = Monte_Carlo_Tree_Node(self, piece, self.colour, new_board)
-                    self.children_nodes.append(new_node)
+            pieces = self.my_board.best_valid_pieces(self.colour, 5)
+            for piece in pieces:
+                new_board = self.my_board.copy()
+                new_board.apply_action(player_colour=self.colour, action=piece, bit_board=True)
+                new_node = Monte_Carlo_Tree_Node(self, piece, self.colour, new_board)
+                self.children_nodes.append(new_node)
 
     def selection(self):
         if any(child.number_of_visits == 0 for child in self.children_nodes):

@@ -38,7 +38,7 @@ class BitBoard:
                 return choice(pieces)
 
 
-    def best_valid_piece(self, player_colour: PlayerColor) -> int:
+    def best_valid_piece(self, player_colour: PlayerColor, num_best: int = 1) -> int:
         """Returns the bitboard representation of the valid piece that maximizes the player's score."""
         empty_cells = self.empty_adjacent_cells(player_colour=player_colour)
         best_piece = None
@@ -54,6 +54,32 @@ class BitBoard:
                         highest_score = score
                         best_piece = piece_position
         return best_piece
+    
+    def best_valid_pieces(self, player_colour: PlayerColor, num_best: int = 1) -> list:
+        """Returns the bitboard representations of up to `num_best` valid pieces that maximize the player's score."""
+        empty_cells = self.empty_adjacent_cells(player_colour=player_colour)
+        top_pieces = []
+
+        for empty_cell in empty_cells:
+            row, column = empty_cell // BOARD_N, empty_cell % BOARD_N
+            
+            for positions in bitboards_pre_computed.values():
+                piece_position = positions[(row, column)]
+                if not (piece_position & self.Boards['combined']):
+                    score = self.scoring(piece_position, player_colour)
+                    if len(top_pieces) < num_best:
+                        top_pieces.append((score, piece_position))
+                    else:
+                        # Find the piece with the lowest score in the top pieces list
+                        lowest_score_piece = min(top_pieces, key=lambda x: x[0])
+                        if score > lowest_score_piece[0]:
+                            # Replace the piece with the lowest score with the new piece if the new score is higher
+                            top_pieces.remove(lowest_score_piece)
+                            top_pieces.append((score, piece_position))
+                            
+        return [piece for score, piece in top_pieces]
+
+
 
     def lines_removed(self):
         row_checks = [idx for idx, row_bb in enumerate(full_rows)
@@ -191,6 +217,7 @@ class BitBoard:
         remove_lines = copy_board.lines_removed()
         copy_board.remove_lines(remove_lines[0], remove_lines[1])
         return copy_board.tiles[player_colour] - copy_board.tiles[opponent_colour]
+    
     # TOO COSTLY add that in report
     
         # Count valid pieces for the player

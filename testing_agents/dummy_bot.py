@@ -59,19 +59,7 @@ class Agent:
             valid_pieces.extend(self._board.generate_valid_pieces(empty_cell))
 
         return BitBoard.bitboard_piece_to_placeaction(choice(valid_pieces))
-# row, column = empty_cell // BOARD_N, empty_cell % BOARD_N
-# highest_score = float('-inf')
 
-# for positions in bitboards_pre_computed.values():
-#     piece_position = positions[(row, column)]
-#     if not (piece_position & self.Boards['combined']):
-#         score = self.scoring(piece_position, player_colour)
-#         if score > highest_score:
-#             highest_score = score
-#             best_piece = piece_position
-# return best_piece
-
-# return BitBoard.bitboard_piece_to_placeaction(best_piece)
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):
         self._board.apply_action(action, color)

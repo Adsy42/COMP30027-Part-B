@@ -56,9 +56,9 @@ class Agent:
     def traverse(self, node):
         current_node = node
         while not current_node.is_leaf_node():
-            current_node = current_node.selection()
+            current_node:Monte_Carlo_Tree_Node = current_node.selection()
 
-        if current_node.number_of_visits == 0:
+        if current_node.number_of_visits > 0:
             # Switch to the opponent's color for the next move
             next_colour = PlayerColor.RED if current_node.colour == PlayerColor.BLUE else PlayerColor.BLUE
             best_piece = current_node.my_board.best_valid_piece(next_colour)
@@ -66,12 +66,10 @@ class Agent:
             if best_piece is not None:
                 # Copy the board and apply the best action found
                 new_board = current_node.my_board.copy()
-                new_board.apply_action(best_piece, next_colour, True)  # Ensure apply_action args are correct
+                new_board.apply_action(best_piece, next_colour, True) 
                 new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board)
                 current_node.children_nodes.append(new_child)
                 current_node = new_child
-            else:
-                print("No valid moves found; this node is a terminal node.")
         
         return current_node
 
