@@ -17,12 +17,13 @@ class Agent:
         self._color = color
         self.board = BitBoard() 
         self.played = False
+        self.intial_move = None
         print(f"IM {color} GONNA OBLITERATE!")
 
     def action(self, **referee: dict) -> Action:
-        if not self.played:
+        if not self.played and not self.intial_move:
             self.played = True
-            if self._color == PlayerColor.RED:
+            if self._color == self._color:
                 print("Testing: RED is playing a PLACE action")
                 return PlaceAction(
                     Coord(3, 3), 
@@ -30,14 +31,8 @@ class Agent:
                     Coord(4, 3), 
                     Coord(4, 4)
                 )
-            elif self._color == PlayerColor.BLUE:
-                print("Testing: BLUE is playing a PLACE action")
-                return PlaceAction(
-                    Coord(2, 3), 
-                    Coord(2, 4), 
-                    Coord(2, 5), 
-                    Coord(2, 6)
-                )
+            else:
+                return self.board.bitboard_piece_to_placeaction(self.intial_move)
         self._root = Monte_Carlo_Tree_Node(None, None, self._color, self.board.copy())
         
         self._root.generate_children()
@@ -82,7 +77,10 @@ class Agent:
 
     
     def update(self, color: PlayerColor, action: PlaceAction, **referee: dict):
+        
         self.board.apply_action(action=action, player_colour=color)
+        if not self.board.Boards[self._color]:
+            self.intial_move = self.board.intial_move(color)
        
     def print_tree_actions(self, node, depth=0):
         """

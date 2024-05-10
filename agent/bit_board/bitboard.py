@@ -3,7 +3,7 @@ from referee.game.player import PlayerColor
 from referee.game.actions import PlaceAction
 from referee.game.coord import Coord
 from .precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
-
+from random import choice
 
 BOARD_N = 11
 TILES_LEN = 4
@@ -30,6 +30,13 @@ class BitBoard:
                 for positions in bitboards_pre_computed.values()
                 if not (positions[(row, column)] & self.Boards['combined'])]
     
+    def intial_move(self, opponent_colour):
+        empty_cells = self.empty_adjacent_cells(opponent_colour)
+        for cell in empty_cells:
+            pieces = self.generate_valid_pieces(cell)
+            if pieces:
+                return choice(pieces)
+
 
     def best_valid_piece(self, player_colour: PlayerColor) -> int:
         """Returns the bitboard representation of the valid piece that maximizes the player's score."""

@@ -1,10 +1,8 @@
 from random import choice
 from agent.bit_board.bitboard import BitBoard
 from referee.game import PlayerColor, Action, PlaceAction, Coord
-from referee.game.constants import BOARD_N
-from agent.monte_carlo import Monte_Carlo_Tree_Node
 from agent.bit_board.precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
-# python -m referee agent.program agent.dummy_bot
+# python -m referee testing_agents.dummy_bot agent.program
 
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
