@@ -22,7 +22,6 @@ class Agent:
         self._root = None
         print(f"IM {color} GONNA OBLITERATE!")
 
-    @profiled_function
     def action(self, **referee: dict) -> Action:
         if not self.played and not self.intial_move:
             self.played = True
