@@ -1,6 +1,7 @@
 # COMP30024 Artificial Intelligence, Semester 1 2024
 # Project Part B: Game Playing Agent
 # python -m referee agent agent
+from agent.profiled_functions import profiled_function
 from referee.game import PlayerColor, Action, PlaceAction, Coord
 from .bit_board.bitboard import BitBoard
 from .monte_carlo import Monte_Carlo_Tree_Node 
@@ -18,8 +19,10 @@ class Agent:
         self.board = BitBoard() 
         self.played = False
         self.intial_move = None
+        self._root = None
         print(f"IM {color} GONNA OBLITERATE!")
 
+    @profiled_function
     def action(self, **referee: dict) -> Action:
         if not self.played and not self.intial_move:
             self.played = True
@@ -64,7 +67,6 @@ class Agent:
             best_piece = current_node.my_board.best_valid_piece(next_colour)
             
             if best_piece is not None:
-                # Copy the board and apply the best action found
                 new_board = current_node.my_board.copy()
                 new_board.apply_action(best_piece, next_colour, True) 
                 new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board)

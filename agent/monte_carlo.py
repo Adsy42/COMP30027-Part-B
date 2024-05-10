@@ -79,7 +79,7 @@ class Monte_Carlo_Tree_Node:
 
     def uct_value(self, total_visits, exploration_constant):
         if self.number_of_visits == 0:
-            return float("inf")  # Ensure unvisited nodes are prioritized
+            return float("inf") 
         mean_value = self.total_score / self.number_of_visits
         uct_score = mean_value + exploration_constant * sqrt(log(total_visits) / self.number_of_visits)
         return uct_score
