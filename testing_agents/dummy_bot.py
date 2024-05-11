@@ -2,8 +2,9 @@ from random import choice
 from agent.bit_board.bitboard import BitBoard
 from referee.game import PlayerColor, Action, PlaceAction, Coord
 from agent.bit_board.precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
-# python -m referee testing_agents.dummy_bot agent.program
+# python -m referee testing_agents.dummy_bot testing_agents.dummy_bot
 # python -m referee testing_agents.min-max agent.program
+# python -m referee testing_agents.program agent.program
 
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
@@ -52,14 +53,7 @@ class Agent:
                     Coord(2, 6)
                 )
         """Attempts to find an empty cell, generate a valid piece, and apply it."""
-        best_piece = self._board.best_valid_piece(self._color)
-
-        empty_cells = self._board.empty_adjacent_cells(player_colour=self._color)
-        valid_pieces = []
-        for empty_cell in empty_cells:
-            valid_pieces.extend(self._board.generate_valid_pieces(empty_cell))
-
-        return BitBoard.bitboard_piece_to_placeaction(choice(valid_pieces))
+        return BitBoard.bitboard_piece_to_placeaction(choice(self._board.valid_pieces(self._color)))
 
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):

@@ -23,12 +23,11 @@ class Monte_Carlo_Tree_Node:
     def rollout(self):
         current_board = self.my_board.copy()
         current_color = PlayerColor.RED if self.colour == PlayerColor.BLUE else PlayerColor.BLUE
-
         start_time = time.time()
         while time.time() - start_time < AVG_SECS_PER_TURN:
-            piece = choice(current_board.generate_valid_pieces(current_color))
-            if piece:
-                current_board.apply_action(player_colour=current_color, action=piece, bit_board=True)
+            pieces = current_board.valid_pieces(current_color)
+            if pieces:
+                current_board.apply_action(player_colour=current_color, action=choice(pieces), bit_board=True)
             else:
                 break
             current_color = PlayerColor.RED if current_color == PlayerColor.BLUE else PlayerColor.BLUE

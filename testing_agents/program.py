@@ -2,8 +2,8 @@
 # Project Part B: Game Playing Agent
 # python -m referee agent agent
 from referee.game import PlayerColor, Action, PlaceAction, Coord, MAX_TURNS
-from ..agent.bit_board.bitboard import BitBoard
-from ..agent.monte_carlo import Monte_Carlo_Tree_Node 
+from agent.bit_board.bitboard import BitBoard
+from agent.monte_carlo import Monte_Carlo_Tree_Node 
 import time
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
@@ -49,7 +49,6 @@ class Agent:
             leaf_node.backpropagate(simulation_result)
             simulation_count += 1
         print(f"Total simulations conducted in this round: {simulation_count}")
-        self.print_tree_actions(self._root)
         return self._root.best_child()
 
     def traverse(self, node):

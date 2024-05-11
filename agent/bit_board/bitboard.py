@@ -23,92 +23,24 @@ class BitBoard:
         """Converts (row, column) coordinate to the bit position in the bitboard, zero-indexed."""
         return (row * BOARD_N) + column
 
-    def generate_valid_pieces(self, bitindex: int) -> list:
-        """Returns a set of bitboards representing valid pieces that can be placed on the board."""
-        row, column = bitindex // BOARD_N, bitindex % BOARD_N
-        return [positions[(row, column)]
-                for positions in bitboards_pre_computed.values()
-                if not (positions[(row, column)] & self.Boards['combined'])]
-
     def valid_pieces(self, player_colour: PlayerColor):
         empty_cells = self.empty_adjacent_cells(player_colour)
         valid_pieces = []
         for empty_cell in empty_cells:
-            row, column = empty_cell // BOARD_N, empty_cell % BOARD_N
-            valid_pieces.extend([positions[(row, column)]
-                for positions in bitboards_pre_computed.values()
-                if not (positions[(row, column)] & self.Boards['combined'])])
+            valid_pieces.extend([position
+                for position in bitboards_pre_computed[empty_cell]
+                if not position & self.Boards['combined']])
         return valid_pieces
     
     def intial_move(self, opponent_colour):
-        empty_cells = self.empty_adjacent_cells(opponent_colour)
-        for cell in empty_cells:
-            pieces = self.generate_valid_pieces(cell)
-            if pieces:
-                return choice(pieces)
-
-    def best_valid_piece(self, player_colour: PlayerColor, num_best: int = 1) -> int:
-        """Returns the bitboard representation of the valid piece that maximizes the player's score."""
-        empty_cells = self.empty_adjacent_cells(player_colour=player_colour)
-        best_piece = None
-        for empty_cell in empty_cells:
-            row, column = empty_cell // BOARD_N, empty_cell % BOARD_N
-            highest_score = float('-inf')
-
-            for positions in bitboards_pre_computed.values():
-                piece_position = positions[(row, column)]
-                if not (piece_position & self.Boards['combined']):
-                    score = self.scoring(piece_position, player_colour)
-                    if score > highest_score:
-                        highest_score = score
-                        best_piece = piece_position
-        return best_piece
+        return choice(self.valid_pieces(opponent_colour))
     
-    def best_valid_pieces(self, player_colour: PlayerColor, num_best: int = 1) -> list:
-        """Returns the bitboard representations of up to `num_best` valid pieces that maximize the player's score."""
-        empty_cells = self.empty_adjacent_cells(player_colour=player_colour)
-        top_pieces = []
-
-        for empty_cell in empty_cells:
-            row, column = empty_cell // BOARD_N, empty_cell % BOARD_N
-            
-            for positions in bitboards_pre_computed.values():
-                piece_position = positions[(row, column)]
-                if not (piece_position & self.Boards['combined']):
-                    score = self.scoring(piece_position, player_colour)
-                    if len(top_pieces) < num_best:
-                        top_pieces.append((score, piece_position))
-                    else:
-                        # Find the piece with the lowest score in the top pieces list
-                        lowest_score_piece = min(top_pieces, key=lambda x: x[0])
-                        if score > lowest_score_piece[0]:
-                            # Replace the piece with the lowest score with the new piece if the new score is higher
-                            top_pieces.remove(lowest_score_piece)
-                            top_pieces.append((score, piece_position))
-
-        return [piece for score, piece in top_pieces]
-
-
-
     def lines_removed(self):
         row_checks = [idx for idx, row_bb in enumerate(full_rows)
                       if (self.Boards['combined'] & row_bb) == row_bb]
         column_checks = [idx for idx, col_bb in enumerate(full_columns)
                          if (self.Boards['combined'] & col_bb) == col_bb]
         return (row_checks, column_checks)
-
-    def empty_adjacent_cells(self, player_colour: PlayerColor) -> list[int]:
-            player_cells = self.Boards[player_colour]
-            adjacent_empty_cells = set()
-            for index in range(BOARD_N**2):
-                if player_cells & (1 << index):
-                    adjacent_cells = adjacent_bitboards[index]
-                    empty_cells = adjacent_cells & ~self.Boards['combined']
-                    for shift in range(BOARD_N**2):
-                        if empty_cells & (1 << shift):
-                            adjacent_empty_cells.add(shift)
-            return list(adjacent_empty_cells)
-    
 
     def find_empty_adjacent_cells_from_piece(self, piece_bitboard: int) -> list:
         """Returns a list of bit indexes representing empty adjacent cells to the given piece bitboard."""
@@ -127,6 +59,17 @@ class BitBoard:
                         adjacent_positions.add(shift)
         return adjacent_positions
 
+    def empty_adjacent_cells(self, player_colour: PlayerColor) -> list[int]:
+            player_cells = self.Boards[player_colour]
+            adjacent_empty_cells = set()
+            for index in range(BOARD_N**2):
+                if player_cells & (1 << index):
+                    adjacent_cells = adjacent_bitboards[index]
+                    empty_cells = adjacent_cells & ~self.Boards['combined']
+                    for shift in range(BOARD_N**2):
+                        if empty_cells & (1 << shift):
+                            adjacent_empty_cells.add(shift)
+            return list(adjacent_empty_cells)
 
 
     @staticmethod
@@ -198,38 +141,7 @@ class BitBoard:
                     output += "."
                 output += " "
             output += "\n"
-        with open("stupid.txt", 'a') as file:
-            file.write(output)
-            file.wirte('\n')
-
-    def render1(self, use_color=False, use_unicode=False) -> str:
-        """
-        Returns a visualization of the game board as a multiline string.
-        """
-        output = ""
-        for r in range(BOARD_N):  # Ensure BOARD_N is defined as the size of the board
-            for c in range(BOARD_N):
-                bitindex = self.get_bit_index(r, c)  # Ensure this method correctly retrieves the bit index for the cell
-                occupied_by = self.cell_occupied_by(bitindex)  # Method to check who occupies the cell
-                if occupied_by == 'r':
-                    text = 'R'
-                elif occupied_by == 'b':
-                    text = 'B'
-                else:
-                    text = '.'
-                output += text + " "
-            output += "\n"
-
-        # Write the output to a file
-        with open("stupid.txt", 'a') as file:
-            file.write('\n\n')
-            file.write(output)
-
-        return output
-
-    def board_control(self, player_colour: PlayerColor):
-        control = self.tiles[PlayerColor.RED] - self.tiles[PlayerColor.BLUE]
-        return -1 * control if player_colour == PlayerColor.BLUE else control
+        print(output)
     
     def copy(self):
         new_board = BitBoard()
@@ -255,13 +167,6 @@ class BitBoard:
             removed_lines = self.lines_removed()
             self.remove_lines(removed_lines[0], removed_lines[1])
         self.turns_played += 1
-
-    def action_to_bitboard(self, action: PlaceAction) -> int:
-            bitboard = 0
-            for coord in action.coords:
-                bit_index = self.get_bit_index(coord.r, coord.c)
-                bitboard |= (1 << bit_index)
-            return bitboard
     
     def scoring(self, action: int, player_colour: PlayerColor) -> int:
         opponent_colour = PlayerColor.RED if player_colour == PlayerColor.BLUE else PlayerColor.BLUE
@@ -286,3 +191,35 @@ class BitBoard:
             opponent_score += len(opponent_pieces)
 
         return (copy_board.tiles[player_colour] - copy_board.tiles[opponent_colour]) + (my_score - opponent_score)
+    
+    def generate_valid_pieces(self, bitindex: int) -> list:
+        """Returns a set of bitboards representing valid pieces that can be placed on the board."""
+        return [position
+                for position in bitboards_pre_computed.values()
+                if not (position & self.Boards['combined'])]
+    
+
+    def render1(self, use_color=False, use_unicode=False) -> str:
+        """
+        Returns a visualization of the game board as a multiline string.
+        """
+        output = ""
+        for r in range(BOARD_N):  # Ensure BOARD_N is defined as the size of the board
+            for c in range(BOARD_N):
+                bitindex = self.get_bit_index(r, c)  # Ensure this method correctly retrieves the bit index for the cell
+                occupied_by = self.cell_occupied_by(bitindex)  # Method to check who occupies the cell
+                if occupied_by == 'r':
+                    text = 'R'
+                elif occupied_by == 'b':
+                    text = 'B'
+                else:
+                    text = '.'
+                output += text + " "
+            output += "\n"
+
+        # Write the output to a file
+        with open("stupid.txt", 'a') as file:
+            file.write('\n\n')
+            file.write(output)
+
+        return output
