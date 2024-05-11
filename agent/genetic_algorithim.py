@@ -1,5 +1,5 @@
 import subprocess
-from agent.program import Agent
+from testing_agents.program import Agent
 import random
 import re
 from dataclasses import dataclass

@@ -198,7 +198,34 @@ class BitBoard:
                     output += "."
                 output += " "
             output += "\n"
-        print(output)
+        with open("stupid.txt", 'a') as file:
+            file.write(output)
+            file.wirte('\n')
+
+    def render1(self, use_color=False, use_unicode=False) -> str:
+        """
+        Returns a visualization of the game board as a multiline string.
+        """
+        output = ""
+        for r in range(BOARD_N):  # Ensure BOARD_N is defined as the size of the board
+            for c in range(BOARD_N):
+                bitindex = self.get_bit_index(r, c)  # Ensure this method correctly retrieves the bit index for the cell
+                occupied_by = self.cell_occupied_by(bitindex)  # Method to check who occupies the cell
+                if occupied_by == 'r':
+                    text = 'R'
+                elif occupied_by == 'b':
+                    text = 'B'
+                else:
+                    text = '.'
+                output += text + " "
+            output += "\n"
+
+        # Write the output to a file
+        with open("stupid.txt", 'a') as file:
+            file.write('\n\n')
+            file.write(output)
+
+        return output
 
     def board_control(self, player_colour: PlayerColor):
         control = self.tiles[PlayerColor.RED] - self.tiles[PlayerColor.BLUE]
