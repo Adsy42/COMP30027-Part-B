@@ -8,7 +8,7 @@ MAX_ACTIONS_PER_OPPONENT = 75
 AVG_SECS_PER_TURN = 2.4  
 
 class Monte_Carlo_Tree_Node:
-    def __init__(self, parent_node, action: int, colour, board: BitBoard):
+    def __init__(self, parent_node, action: int, colour, board: BitBoard, my_colour, opponent_colour):
         self.parent_node = parent_node
         self.action = action
         self.colour = colour
@@ -16,6 +16,8 @@ class Monte_Carlo_Tree_Node:
         self.number_of_visits = 0
         self.total_score = 0
         self.my_board = board
+        self.my_colour = my_colour
+        self.opponent_colour = opponent_colour
 
     def rollout(self):
         current_board = self.my_board.copy()
@@ -31,6 +33,7 @@ class Monte_Carlo_Tree_Node:
             current_color = PlayerColor.RED if current_color == PlayerColor.BLUE else PlayerColor.BLUE
 
         if current_board.turns_played == 150:
+            print("reached terminal state")
             red_score = current_board.tiles[PlayerColor.RED]
             blue_score = current_board.tiles[PlayerColor.BLUE]
             winning_color = PlayerColor.RED if red_score > blue_score else PlayerColor.BLUE
@@ -55,7 +58,9 @@ class Monte_Carlo_Tree_Node:
         current_node = self
         while current_node:
             current_node.number_of_visits += 1
-            if current_node.colour == winning_colour:
+            if current_node.colour == self.my_colour and current_node.colour == winning_colour:
+                current_node.total_score += 1
+            elif current_node.colour == self.opponent_colour and current_node.colour != winning_colour:
                 current_node.total_score += 1
             current_node = current_node.parent_node
 
@@ -65,7 +70,7 @@ class Monte_Carlo_Tree_Node:
             for piece in pieces:
                 new_board = self.my_board.copy()
                 new_board.apply_action(player_colour=self.colour, action=piece, bit_board=True)
-                new_node = Monte_Carlo_Tree_Node(self, piece, self.colour, new_board)
+                new_node = Monte_Carlo_Tree_Node(self, piece, self.colour, new_board, self.my_colour, self.opponent_colour)
                 self.children_nodes.append(new_node)
 
     def selection(self):

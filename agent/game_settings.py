@@ -1,0 +1,2 @@
+MY_COLOUR = None
+OPONNENT_COLOUR = None

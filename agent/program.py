@@ -1,16 +1,14 @@
 # COMP30024 Artificial Intelligence, Semester 1 2024
 # Project Part B: Game Playing Agent
 # python -m referee agent agent
-from referee.game import PlayerColor, Action, PlaceAction, Coord
+from referee.game import PlayerColor, Action, PlaceAction, Coord, MAX_TURNS
 from .bit_board.bitboard import BitBoard
 from .monte_carlo import Monte_Carlo_Tree_Node 
 import time
-
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
-AVG_SECS_PER_TURN = 2.4  
-MAX_ACTIONS = 75
-
+AVG_SECS_PER_TURN = 2.4 
+MAX_ACTIONS = MAX_TURNS/2
 
 class Agent:
     def __init__(self, color: PlayerColor, **referee: dict):
@@ -19,6 +17,7 @@ class Agent:
         self.played = False
         self.intial_move = None
         self._root = None
+        self._opponent_colour = PlayerColor.RED if color == PlayerColor.BLUE else PlayerColor.BLUE
         print(f"IM {color} GONNA OBLITERATE!")
 
     def action(self, **referee: dict) -> Action:
@@ -34,12 +33,10 @@ class Agent:
                 )
             else:
                 return self.board.bitboard_piece_to_placeaction(self.intial_move)
-        self._root = Monte_Carlo_Tree_Node(None, None, self._color, self.board.copy())
+        self._root = Monte_Carlo_Tree_Node(None, None, self._color, self.board.copy(), self._color, self._opponent_colour)
         
         self._root.generate_children()
-        self._root.my_board.render()
         best_move = self.mcts_select_best_move()
-        self.print_tree_actions(self._root)
         self._root = None 
         return BitBoard.bitboard_piece_to_placeaction(best_move.action)
     
@@ -52,6 +49,7 @@ class Agent:
             leaf_node.backpropagate(simulation_result)
             simulation_count += 1
         print(f"Total simulations conducted in this round: {simulation_count}")
+        self.print_tree_actions(self._root)
         return self._root.best_child()
 
     def traverse(self, node):
@@ -67,7 +65,7 @@ class Agent:
             if best_piece is not None:
                 new_board = current_node.my_board.copy()
                 new_board.apply_action(best_piece, next_colour, True) 
-                new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board)
+                new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board, self._color, self._opponent_colour)
                 current_node.children_nodes.append(new_child)
                 current_node = new_child
         
