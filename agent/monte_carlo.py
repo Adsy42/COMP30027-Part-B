@@ -64,13 +64,14 @@ class Monte_Carlo_Tree_Node:
                 current_node.total_score += 1
             current_node = current_node.parent_node
 
-    def generate_children(self):
+    def generate_children(self, colour):
         if not self.children_nodes:
-            pieces = self.my_board.best_valid_pieces(self.colour, 5)
+            pieces = self.my_board.valid_pieces(colour)
+            op_col = PlayerColor.RED if colour == PlayerColor.BLUE else PlayerColor.BLUE
             for piece in pieces:
                 new_board = self.my_board.copy()
-                new_board.apply_action(player_colour=self.colour, action=piece, bit_board=True)
-                new_node = Monte_Carlo_Tree_Node(self, piece, self.colour, new_board, self.my_colour, self.opponent_colour)
+                new_board.apply_action(player_colour=colour, action=piece, bit_board=True)
+                new_node = Monte_Carlo_Tree_Node(self, piece, colour, new_board, self.my_colour, op_col)
                 self.children_nodes.append(new_node)
 
     def selection(self):

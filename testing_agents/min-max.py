@@ -122,8 +122,20 @@ class Agent:
             return float('-inf') if self._color == current_player else float('inf')
         
         opponent_colour = PlayerColor.RED if self._color == PlayerColor.BLUE else PlayerColor.BLUE
+        my_score = 0
+        opponent_score = 0
+        my_empty_cells = board.empty_adjacent_cells(self._color)
+        for empty_cell in my_empty_cells:
+            my_pieces = board.generate_valid_pieces(empty_cell)
+            my_score += len(my_pieces)
 
-        return (board.tiles[self._color] - board.tiles[opponent_colour])
+        # Count valid pieces for the opponent
+        opponent_empty_cells = board.empty_adjacent_cells(self._color)
+        for empty_cell in opponent_empty_cells:
+            opponent_pieces = board.generate_valid_pieces(empty_cell)
+            opponent_score += len(opponent_pieces)
+
+        return (board.tiles[self._color] - board.tiles[opponent_colour]) + (my_score - opponent_score)
 
     def opponent_color(self, color):
         return PlayerColor.BLUE if color == PlayerColor.RED else PlayerColor.RED

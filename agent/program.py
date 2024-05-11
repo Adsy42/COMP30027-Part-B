@@ -35,7 +35,7 @@ class Agent:
                 return self.board.bitboard_piece_to_placeaction(self.intial_move)
         self._root = Monte_Carlo_Tree_Node(None, None, self._color, self.board.copy(), self._color, self._opponent_colour)
         
-        self._root.generate_children()
+        self._root.generate_children(self._color)
         best_move = self.mcts_select_best_move()
         self._root = None 
         return BitBoard.bitboard_piece_to_placeaction(best_move.action)
@@ -57,17 +57,18 @@ class Agent:
         while not current_node.is_leaf_node():
             current_node:Monte_Carlo_Tree_Node = current_node.selection()
 
-        if current_node.number_of_visits > 0:
+        if current_node.number_of_visits == 0:
             # Switch to the opponent's color for the next move
             next_colour = PlayerColor.RED if current_node.colour == PlayerColor.BLUE else PlayerColor.BLUE
-            best_piece = current_node.my_board.best_valid_piece(next_colour)
+            current_node.generate_children(next_colour)
+            # best_piece = current_node.my_board.best_valid_piece(next_colour)
             
-            if best_piece is not None:
-                new_board = current_node.my_board.copy()
-                new_board.apply_action(best_piece, next_colour, True) 
-                new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board, self._color, self._opponent_colour)
-                current_node.children_nodes.append(new_child)
-                current_node = new_child
+            # if best_piece is not None:
+            #     new_board = current_node.my_board.copy()
+            #     new_board.apply_action(best_piece, next_colour, True) 
+            #     new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board, self._color, self._opponent_colour)
+            #     current_node.children_nodes.append(new_child)
+            #     current_node = new_child
         
         return current_node
 
