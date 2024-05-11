@@ -110,7 +110,14 @@ class BitBoard:
                         if empty_cells & (1 << shift):
                             adjacent_empty_cells.add(shift)
             return list(adjacent_empty_cells)
-    
+
+    def intial_move(self, opponent_colour):
+        empty_cells = self.empty_adjacent_cells(opponent_colour)
+        for cell in empty_cells:
+            pieces = self.generate_valid_pieces(cell)
+            if pieces:
+                return choice(pieces)
+
 
     def find_empty_adjacent_cells_from_piece(self, piece_bitboard: int) -> list:
         """Returns a list of bit indexes representing empty adjacent cells to the given piece bitboard."""

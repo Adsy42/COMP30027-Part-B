@@ -37,6 +37,8 @@ class Agent:
         self._color = color
         self._board:BitBoard = BitBoard()
         self.time_limit = 2.4
+        self.played = False
+        self.intial_move = None
         match color:
             case PlayerColor.RED:
                 print("Testing: I am playing as RED")
@@ -45,12 +47,9 @@ class Agent:
 
     @profiled_function
     def action(self, **referee: dict) -> Action:
-        """
-        This method is called by the referee each time it is the agent's turn
-        to take an action. It must always return an action object. 
-        """
-        if self._board.Boards[self._color] == 0:
-            if self._color == PlayerColor.RED:
+        if not self.played:
+            self.played = True
+            if not self.intial_move:
                 print("Testing: RED is playing a PLACE action")
                 return PlaceAction(
                     Coord(3, 3), 
@@ -58,14 +57,8 @@ class Agent:
                     Coord(4, 3), 
                     Coord(4, 4)
                 )
-            elif self._color == PlayerColor.BLUE:
-                print("Testing: BLUE is playing a PLACE action")
-                return PlaceAction(
-                    Coord(2, 3), 
-                    Coord(2, 4), 
-                    Coord(2, 5), 
-                    Coord(2, 6)
-                )
+            else:
+                return self._board.bitboard_piece_to_placeaction(self.intial_move)
         # Below we have hardcoded two actions to be played depending on whether
         # the agent is playing as BLUE or RED. Obviously this won't work beyond
         # the initial moves of the game, so you should use some game playing
@@ -86,6 +79,9 @@ class Agent:
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):
         self._board.apply_action(action, color)
+        if not self._board.Boards[self._color]:
+            self.intial_move = self._board.intial_move(color)
+            print(self.intial_move)
 
         """
         This method is called by the referee after an agent has taken their
@@ -102,7 +98,7 @@ class Agent:
         print(f"Testing: {color} played PLACE action: {c1}, {c2}, {c3}, {c4}")
 
     def minimax(self, board, alpha, beta, maximizingPlayer, end_time, depth = 0):
-        if time.time() > end_time or depth > 1:  # Check if the current time exceeds the end time
+        if time.time() > end_time or depth > 2:  # Check if the current time exceeds the end time
             player_colour = self._color if maximizingPlayer else PlayerColor.BLUE if self._color == PlayerColor.RED else PlayerColor.RED
             return self.evaluate(player_colour, board)
 
