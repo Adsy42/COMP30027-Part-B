@@ -3,6 +3,7 @@ from agent.bit_board.bitboard import BitBoard
 from referee.game import PlayerColor, Action, PlaceAction, Coord
 from agent.bit_board.precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
 # python -m referee testing_agents.dummy_bot agent.program
+# python -m referee testing_agents.min-max agent.program
 
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75

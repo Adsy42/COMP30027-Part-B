@@ -29,6 +29,16 @@ class BitBoard:
         return [positions[(row, column)]
                 for positions in bitboards_pre_computed.values()
                 if not (positions[(row, column)] & self.Boards['combined'])]
+
+    def valid_pieces(self, player_colour: PlayerColor):
+        empty_cells = self.empty_adjacent_cells(player_colour)
+        valid_pieces = []
+        for empty_cell in empty_cells:
+            row, column = empty_cell // BOARD_N, empty_cell % BOARD_N
+            valid_pieces.extend([positions[(row, column)]
+                for positions in bitboards_pre_computed.values()
+                if not (positions[(row, column)] & self.Boards['combined'])])
+        return valid_pieces
     
     def intial_move(self, opponent_colour):
         empty_cells = self.empty_adjacent_cells(opponent_colour)
