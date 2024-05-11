@@ -2,7 +2,7 @@
 # Project Part B: Game Playing Agent
 
 from referee.game import PlayerColor, Action, PlaceAction, Coord
-from agent.bitboard import BitBoard
+from .bitboard import BitBoard
 import cProfile
 import pstats
 import io
