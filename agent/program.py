@@ -1,5 +1,5 @@
 from referee.game import PlayerColor, Action, PlaceAction, Coord
-from agent.bit_board import BitBoard
+from .bit_board import BitBoard
 import time
 
 class Agent:
