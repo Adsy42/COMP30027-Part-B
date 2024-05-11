@@ -4,7 +4,7 @@ import time
 from .bit_board.bitboard import BitBoard
 from referee.game.player import PlayerColor
 from referee.game.constants import MAX_TURNS
-EXPLORATION_CONSTANT = 1
+EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
 AVG_SECS_PER_TURN = 2.4  
 

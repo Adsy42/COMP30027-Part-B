@@ -170,32 +170,14 @@ class BitBoard:
     
     def scoring(self, action: int, player_colour: PlayerColor) -> int:
         opponent_colour = PlayerColor.RED if player_colour == PlayerColor.BLUE else PlayerColor.BLUE
-        my_score = 0
-        opponent_score = 0
-
         copy_board = self.copy()
         copy_board.apply_action(action, player_colour, bit_board=True)
-        remove_lines = copy_board.lines_removed()
-        copy_board.remove_lines(remove_lines[0], remove_lines[1])
-
-
-        my_empty_cells = copy_board.find_empty_adjacent_cells_from_piece(action)
-        for empty_cell in my_empty_cells:
-            my_pieces = copy_board.generate_valid_pieces(empty_cell)
-            my_score += len(my_pieces)
-
-        # Count valid pieces for the opponent
-        opponent_empty_cells = copy_board.find_empty_adjacent_cells_from_piece(action)
-        for empty_cell in opponent_empty_cells:
-            opponent_pieces = copy_board.generate_valid_pieces(empty_cell)
-            opponent_score += len(opponent_pieces)
-
-        return (copy_board.tiles[player_colour] - copy_board.tiles[opponent_colour]) + (my_score - opponent_score)
+        return (copy_board.tiles[player_colour] - copy_board.tiles[opponent_colour])
     
     def generate_valid_pieces(self, bitindex: int) -> list:
         """Returns a set of bitboards representing valid pieces that can be placed on the board."""
         return [position
-                for position in bitboards_pre_computed.values()
+                for position in bitboards_pre_computed[bitindex]
                 if not (position & self.Boards['combined'])]
     
 
@@ -223,3 +205,24 @@ class BitBoard:
             file.write(output)
 
         return output
+    
+    def best_piece(self, player_colour: PlayerColor):
+        empty_cells = self.empty_adjacent_cells(player_colour)
+        best_piece = None
+        highest_score = float('-inf')  # Start with the lowest possible score
+
+        for empty_cell in empty_cells:
+            valid_positions = [
+                position for position in bitboards_pre_computed[empty_cell]
+                if not position & self.Boards['combined']
+            ]
+            
+            for position in valid_positions:
+                
+                # Evaluate the whole board state for the score
+                score = self.scoring(position, player_colour)
+                if score > highest_score:
+                    highest_score = score
+                    best_piece = position
+
+        return best_piece # Return the best piece based on the highest scoring

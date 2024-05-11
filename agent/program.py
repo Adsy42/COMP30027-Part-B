@@ -2,7 +2,7 @@
 # Project Part B: Game Playing Agent
 # python -m referee agent agent
 from referee.game import PlayerColor, Action, PlaceAction, Coord, MAX_TURNS
-from agent.bit_board.bitboard import BitBoard
+from .bit_board.bitboard import BitBoard
 from agent.monte_carlo import Monte_Carlo_Tree_Node 
 import time
 EXPLORATION_CONSTANT = 1.41
