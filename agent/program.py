@@ -1,29 +1,33 @@
-# COMP30024 Artificial Intelligence, Semester 1 2024
-# Project Part B: Game Playing Agent
-# python -m referee agent agent
-from referee.game import PlayerColor, Action, PlaceAction, Coord, MAX_TURNS
-from .bit_board.bitboard import BitBoard
-from .monte_carlo import Monte_Carlo_Tree_Node 
+from referee.game import PlayerColor, Action, PlaceAction, Coord
+from agent.bit_board import BitBoard
 import time
-EXPLORATION_CONSTANT = 1.41
-MAX_ACTIONS_PER_OPPONENT = 75
-AVG_SECS_PER_TURN = 2.4 
-MAX_ACTIONS = MAX_TURNS/2
 
 class Agent:
+    """
+    This class is the "entry point" for your agent, providing an interface to
+    respond to various Tetress game events.
+    """
+
     def __init__(self, color: PlayerColor, **referee: dict):
+        """
+        This constructor method runs when the referee instantiates the agent.
+        Any setup and/or precomputation should be done here.
+        """
         self._color = color
-        self.board = BitBoard() 
+        self._board:BitBoard = BitBoard()
+        self.time_limit = 2.4
         self.played = False
         self.intial_move = None
-        self._root = None
-        self._opponent_colour = PlayerColor.RED if color == PlayerColor.BLUE else PlayerColor.BLUE
-        print(f"IM {color} GONNA OBLITERATE!")
+        match color:
+            case PlayerColor.RED:
+                print("Testing: I am playing as RED")
+            case PlayerColor.BLUE:
+                print("Testing: I am playing as BLUE")
 
     def action(self, **referee: dict) -> Action:
-        if not self.played and not self.intial_move:
+        if not self.played:
             self.played = True
-            if self._color == self._color:
+            if not self.intial_move:
                 print("Testing: RED is playing a PLACE action")
                 return PlaceAction(
                     Coord(3, 3), 
@@ -32,65 +36,106 @@ class Agent:
                     Coord(4, 4)
                 )
             else:
-                return self.board.bitboard_piece_to_placeaction(self.intial_move)
-        self._root = Monte_Carlo_Tree_Node(None, None, self._color, self.board.copy(), self._color, self._opponent_colour)
-        
-        self._root.generate_children(self._color)
-        best_move = self.mcts_select_best_move()
-        self._root = None 
-        return BitBoard.bitboard_piece_to_placeaction(best_move.action)
-    
-    def mcts_select_best_move(self):
+                return self._board.bitboard_piece_to_placeaction(self.intial_move)
+        # Below we have hardcoded two actions to be played depending on whether
+        # the agent is playing as BLUE or RED. Obviously this won't work beyond
+        # the initial moves of the game, so you should use some game playing
+        # technique(s) to determine the best action to take.
+        """Attempts to find an empty cell, generate a valid piece, and apply it."""
         start_time = time.time()
-        simulation_count = 0
-        while time.time() - start_time < AVG_SECS_PER_TURN:
-            leaf_node = self.traverse(self._root)
-            simulation_result = leaf_node.rollout()
-            leaf_node.backpropagate(simulation_result)
-            simulation_count += 1
-        print(f"Total simulations conducted in this round: {simulation_count}")
-        self.print_tree_actions(self._root)
-        return self._root.best_child()
+        end_time = start_time + self.time_limit  # Define end time based on the current time and time limit
+        best_move = None
+        best_value = float('-inf')
+        for move in self._board.valid_pieces(self._color):
+            new_board = self._board.copy()
+            new_board.apply_action(move, self._color, True)
+            move_value = self.minimax(new_board, float('-inf'), float('inf'), False, end_time)
+            if move_value > best_value:
+                best_value = move_value
+                best_move = move
+        return BitBoard.bitboard_piece_to_placeaction(best_move)
 
-    def traverse(self, node):
-        current_node = node
-        while not current_node.is_leaf_node():
-            current_node:Monte_Carlo_Tree_Node = current_node.selection()
+    def update(self, color: PlayerColor, action: Action, **referee: dict):
+        self._board.apply_action(action, color)
+        if not self._board.Boards[self._color]:
+            self.intial_move = self._board.intial_move(color)
+            print(self.intial_move)
 
-        if current_node.number_of_visits == 0:
-            # Switch to the opponent's color for the next move
-            next_colour = PlayerColor.RED if current_node.colour == PlayerColor.BLUE else PlayerColor.BLUE
-            current_node.generate_children(next_colour)
-            # best_piece = current_node.my_board.best_valid_piece(next_colour)
-            
-            # if best_piece is not None:
-            #     new_board = current_node.my_board.copy()
-            #     new_board.apply_action(best_piece, next_colour, True) 
-            #     new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board, self._color, self._opponent_colour)
-            #     current_node.children_nodes.append(new_child)
-            #     current_node = new_child
-        
-        return current_node
-
-    
-    def update(self, color: PlayerColor, action: PlaceAction, **referee: dict):
-        
-        self.board.apply_action(action=action, player_colour=color)
-        if not self.board.Boards[self._color]:
-            self.intial_move = self.board.intial_move(color)
-       
-    def print_tree_actions(self, node, depth=0):
         """
-        Recursively prints the action for each node in the Monte Carlo tree.
-
-        Parameters:
-            node (Monte_Carlo_Tree_Node): The current node in the tree.
-            depth (int): The current depth in the tree, used for indentation to visualize tree structure.
+        This method is called by the referee after an agent has taken their
+        turn. You should use it to update the agent's internal game state. 
         """
-        # Print the current node's action, indenting based on the depth in the tree
-        indent = "  " * depth  # Indentation based on the depth of the node
-        print(f"{indent}Action: {node.action}, Colour: {node.colour}, Visits: {node.number_of_visits}, Score: {node.total_score}, Depth: {depth}")
 
-        # Recursively call this function for all child nodes
-        for child in node.children_nodes:
-            self.print_tree_actions(child, depth + 1)
+        # There is only one action type, PlaceAction
+        place_action: PlaceAction = action
+        c1, c2, c3, c4 = place_action.coords
+
+        # Here we are just printing out the PlaceAction coordinates for
+        # demonstration purposes. You should replace this with your own logic
+        # to update your agent's internal game state representation.
+        print(f"Testing: {color} played PLACE action: {c1}, {c2}, {c3}, {c4}")
+
+    def minimax(self, board, alpha, beta, maximizingPlayer, end_time, depth = 0):
+        if time.time() > end_time or depth > 2:  # Check if the current time exceeds the end time
+            player_colour = self._color if maximizingPlayer else PlayerColor.BLUE if self._color == PlayerColor.RED else PlayerColor.RED
+            return self.evaluate(player_colour, board)
+
+        if maximizingPlayer:
+            maxEval = float('-inf')
+            for move in board.valid_pieces(self._color):
+                if time.time() > end_time:
+                    break  # Early exit if time limit is reached during loop
+                new_board = board.copy()
+                new_board.apply_action(move,self._color, True)
+                eval = self.minimax(new_board, alpha, beta, False, end_time, depth + 1)
+                maxEval = max(maxEval, eval)
+                alpha = max(alpha, eval)
+                if beta <= alpha:
+                    break
+            return maxEval
+        else:
+            minEval = float('inf')
+            opponent_color = self.opponent_color(self._color)
+            for move in board.valid_pieces(opponent_color):
+                if time.time() > end_time:
+                    break  # Early exit if time limit is reached during loop
+                new_board = board.copy()
+                new_board.apply_action(move,opponent_color, True)
+                eval = self.minimax(new_board, alpha, beta, True, end_time, depth + 1)
+                minEval = min(minEval, eval)
+                beta = min(beta, eval)
+                if beta <= alpha:
+                    break
+            return minEval
+
+    def evaluate(self, current_player, board: BitBoard):
+        # Check if the game should end by move limit
+        if board.turns_played == 150:
+            # Check if the current player has no valid moves
+            if not len(board.valid_pieces(current_player)):
+                # Determine the outcome based on which player is out of moves
+                return float('-inf') if self._color == current_player else float('inf')
+
+        # Check if the current player has no valid moves (game might end)
+        elif not len(board.valid_pieces(current_player)):
+            # Return the game outcome based on current player and their available moves
+            return float('-inf') if self._color == current_player else float('inf')
+        
+        opponent_colour = PlayerColor.RED if self._color == PlayerColor.BLUE else PlayerColor.BLUE
+        my_score = 0
+        opponent_score = 0
+        my_empty_cells = board.empty_adjacent_cells(self._color)
+        for empty_cell in my_empty_cells:
+            my_pieces = board.generate_valid_pieces(empty_cell)
+            my_score += len(my_pieces)
+
+        # Count valid pieces for the opponent
+        opponent_empty_cells = board.empty_adjacent_cells(self._color)
+        for empty_cell in opponent_empty_cells:
+            opponent_pieces = board.generate_valid_pieces(empty_cell)
+            opponent_score += len(opponent_pieces)
+
+        return (board.tiles[self._color] - board.tiles[opponent_colour]) + (my_score - opponent_score)
+
+    def opponent_color(self, color):
+        return PlayerColor.BLUE if color == PlayerColor.RED else PlayerColor.RED

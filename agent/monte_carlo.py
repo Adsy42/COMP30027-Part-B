@@ -1,9 +1,10 @@
 from math import log, sqrt
+from random import choice
 import time
 from .bit_board.bitboard import BitBoard
 from referee.game.player import PlayerColor
 from referee.game.constants import MAX_TURNS
-EXPLORATION_CONSTANT = 1.41
+EXPLORATION_CONSTANT = 1
 MAX_ACTIONS_PER_OPPONENT = 75
 AVG_SECS_PER_TURN = 2.4  
 
@@ -25,9 +26,9 @@ class Monte_Carlo_Tree_Node:
 
         start_time = time.time()
         while time.time() - start_time < AVG_SECS_PER_TURN:
-            best_piece = current_board.best_valid_piece(self.colour)
-            if best_piece:
-                current_board.apply_action(player_colour=current_color, action=best_piece, bit_board=True)
+            piece = choice(current_board.generate_valid_pieces(current_color))
+            if piece:
+                current_board.apply_action(player_colour=current_color, action=piece, bit_board=True)
             else:
                 break
             current_color = PlayerColor.RED if current_color == PlayerColor.BLUE else PlayerColor.BLUE
