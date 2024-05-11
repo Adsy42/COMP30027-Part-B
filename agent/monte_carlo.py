@@ -25,6 +25,9 @@ class Monte_Carlo_Tree_Node:
         current_color = PlayerColor.RED if self.colour == PlayerColor.BLUE else PlayerColor.BLUE
         start_time = time.time()
         while time.time() - start_time < AVG_SECS_PER_TURN:
+            # best_piece = current_board.best_piece(current_color)
+            # if best_piece:
+            #     current_board.apply_action(player_colour=current_color, action=best_piece, bit_board=True)
             pieces = current_board.valid_pieces(current_color)
             if pieces:
                 current_board.apply_action(player_colour=current_color, action=choice(pieces), bit_board=True)

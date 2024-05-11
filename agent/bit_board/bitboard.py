@@ -226,3 +226,4 @@ class BitBoard:
                     best_piece = position
 
         return best_piece # Return the best piece based on the highest scoring
+    
