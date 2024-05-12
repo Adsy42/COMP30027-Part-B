@@ -2,6 +2,7 @@ from referee.game import PlayerColor, Action, PlaceAction, Coord
 from agent.bit_board.bitboard import BitBoard
 import time
 from profiled_functions import profiled_function, profiler2, time_limited_execution, TimeoutException
+from referee.game.constants import MAX_TURNS
 class Agent:
     """
     This class is the "entry point" for your agent, providing an interface to
@@ -19,6 +20,7 @@ class Agent:
         self.played = False
         self.intial_move = None
         self.profiler = profiler2
+        self.turns_played = 0
         match color:
             case PlayerColor.RED:
                 print("Testing: I am playing as RED")
@@ -40,13 +42,9 @@ class Agent:
                 )
             else:
                 return self._board.bitboard_piece_to_placeaction(self.intial_move)
-        # Below we have hardcoded two actions to be played depending on whether
-        # the agent is playing as BLUE or RED. Obviously this won't work beyond
-        # the initial moves of the game, so you should use some game playing
-        # technique(s) to determine the best action to take.
         """Attempts to find an empty cell, generate a valid piece, and apply it."""
         start_time = time.time()
-        end_time = start_time + self.time_limit  # Define end time based on the current time and time limit
+        end_time = start_time + (referee["time_remaining"]/(MAX_TURNS/2 - self.turns_played))  # Define end time based on the current time and time limit
         best_move = None
         best_value = float('-inf')
         for move in self._board.valid_pieces(self._color):
@@ -61,6 +59,7 @@ class Agent:
                 best_value = move_value
                 best_move = move
         self.profiler.export_to_csv()
+        self.turns_played += 1
         return BitBoard.bitboard_piece_to_placeaction(best_move)
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):
