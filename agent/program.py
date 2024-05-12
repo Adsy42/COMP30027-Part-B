@@ -5,7 +5,8 @@ from referee.game import PlayerColor, Action, PlaceAction, Coord
 from .bit_board.bitboard import BitBoard
 from .monte_carlo import Monte_Carlo_Tree_Node 
 import time
-from profiled_functions import profiler, profiled_function, TimeoutException, time_limited_execution
+import os
+from .profiled_functions import profiler, profiled_function, TimeoutException, time_limited_execution
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
 
@@ -19,13 +20,22 @@ class Agent:
         self.profiler = profiler
         self._opponent_colour = PlayerColor.RED if color == PlayerColor.BLUE else PlayerColor.BLUE
         self.turns_played = 0
-        print(f"IM {color} GONNA OBLITERATE!")
-
+        self.param1 = float(os.getenv('PARAM1', '0.0'))
+        self.param2 = float(os.getenv('PARAM2', '0.0'))
+        self.param3 = float(os.getenv('PARAM3', '0.0'))
+        self.param4 = float(os.getenv('PARAM4', '0.0'))
+        
+        print(f"I'M {self._color.name} AND I'M GONNA OBLITERATE!")
+    def monte_carlo_const(self, time_remaining, turns_played, board_dominance, board_gaps):
+        return self.param1 * time_remaining +  self.param2* turns_played + self.param3*board_dominance* self.param4*board_gaps
+    
     @profiled_function
     def action(self, **referee: dict) -> Action:
         self.profiler.record_action_call()
         self.time_remaining = referee["time_remaining"]
-
+        EXPLORATION_CONSTANT = self.monte_carlo_const(referee["time_remaining"], self.turns_played, 
+                                                      self.board.tiles[self._color] - self.board.tiles[self._opponent_colour], 
+                                                      len(self.board.valid_pieces(self._color)) - len(self.board.valid_pieces(self._opponent_colour)))
         if not self.played and not self.intial_move:
             self.played = True
             if self._color == self._color:
