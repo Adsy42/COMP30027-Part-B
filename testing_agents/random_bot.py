@@ -5,8 +5,10 @@ from agent.bit_board.precomputed_bitboards import bitboards_pre_computed, full_r
 # python -m referee testing_agents.dummy_bot testing_agents.dummy_bot
 # python -m referee testing_agents.min-max agent.program
 # python -m referee agent.program testing_agents.program 
-# python -m referee testing_agents.mini_max testing_agents.greedy_search.py 
 
+# python -m referee testing_agents.mini_max testing_agents.greedy_search.py 
+# python -m referee agent.program testing_agents.greedy_search.py 
+# python -m referee agent.program testing_agents.mini_max
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
 AVG_SECS_PER_TURN = 2.4  

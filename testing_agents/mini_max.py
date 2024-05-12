@@ -76,7 +76,7 @@ class Agent:
         print(f"Testing: {color} played PLACE action: {c1}, {c2}, {c3}, {c4}")
 
     def minimax(self, board, alpha, beta, maximizingPlayer, end_time, depth = 0):
-        if time.time() > end_time or depth > 3:  # Check if the current time exceeds the end time
+        if time.time() > end_time or depth > 2:  # Check if the current time exceeds the end time
             player_colour = self._color if maximizingPlayer else PlayerColor.BLUE if self._color == PlayerColor.RED else PlayerColor.RED
             return self.evaluate(player_colour, board)
 
