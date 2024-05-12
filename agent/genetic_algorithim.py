@@ -9,71 +9,72 @@ MATCH_WINNING_PLAYER = r"player (\d+)"
 
 @dataclass
 class GeneticAgent:
-    agent: Agent
-    param_a: float
-    param_b: float
+    agent: 'Agent'  # Assuming 'Agent' is defined elsewhere and is compatible
+    compute_exploration_constant: callable  # This is a function that takes two parameters
+
+def exploration_function(param1, param2):
+    """ A sample function that computes an exploration constant based on two parameters. """
+    # An example computation, this should be replaced with your actual logic
+    return param1 * 2 + param2
 
 def initialise_population(size):
     print("Initializing population...")
-    return [GeneticAgent(Agent(PlayerColor.RED), random.uniform(-1.0, 1.0), random.uniform(-1.0, 1.0)) for _ in range(size)]
-
-def evaluate_agents(population):
-    print("Evaluating agents...")
-    fitness_scores = []
-    for agent in population:
-        print(f"Simulating game for agent: {agent}")
-        score = simulate_game(agent)
-        fitness_scores.append(score)
-        print(f"Agent scored: {score}")
-    print("All agents evaluated.")
-    return fitness_scores
-
-def select_parents(population, fitness_scores, num_parents=2):
-    print("Selecting parents...")
-    total_fitness = sum(fitness_scores)
-    selection_probs = [score / total_fitness for score in fitness_scores]
-    parents = random.choices(population, weights=selection_probs, k=num_parents)
-    print(f"Selected {num_parents} parents.")
-    return parents
-
-def mutate(agent, mutation_rate=0.1):
-    print(f"Mutating agent with initial params: {agent.param_a}, {agent.param_b}")
-    if random.random() < mutation_rate:
-        agent.param_a += random.uniform(-0.1, 0.1)
-        agent.param_b += random.uniform(-0.1, 0.1)
-    print(f"Mutated agent to params: {agent.param_a}, {agent.param_b}")
-
-def crossover(parent1, parent2):
-    print("Performing crossover...")
-    child1 = GeneticAgent(Agent(PlayerColor.RED), parent1.param_a, parent2.param_b)
-    child2 = GeneticAgent(Agent(PlayerColor.RED), parent2.param_a, parent1.param_b)
-    print("Crossover completed.")
-    return child1, child2
+    return [GeneticAgent(Agent(PlayerColor.RED), lambda p1, p2: exploration_function(random.uniform(0, 1), random.uniform(0, 1))) for _ in range(size)]
 
 def simulate_game(agent):
-    print("Running game simulation...")
-    command = [
-        'python', '-m', 'referee', 'agent.program:Agent', 'agent.program:Monte_Carlo_Agent',
-        '--time', '180', '--space', '250'] #, '--verbosity', '0'    ]
-    result = subprocess.run(command, capture_output=True, text=True)
-    print(result.stdout)
-    score = parse_game_result(result.stdout)
-    print("Game simulation completed.")
+    print(f"Running game simulation for agent with exploration function...")
+    # Placeholder command setup; replace with your actual Monte-Carlo simulation command
+    command = ['python', '-m', 'referee', 'agent.program:Agent', 'agent.program:Monte_Carlo_Agent',
+               '--time', '180', '--space', '250']
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        score = parse_game_result(result.stdout)
+        print(f"Game simulation completed with score: {score}")
+    except subprocess.CalledProcessError as e:
+        print("Error during game simulation:", e)
+        score = 0
     return score
 
 def parse_game_result(output):
     print("Parsing game result...")
     result = output.strip().split('\n')[-1]
-    match = re.search(MATCH_WINNING_PLAYER, result)
+    match = re.search(r'Winning player: (\d)', result)
     win = 1 if match and match.group(1) == '2' else 0
     print(f"Game result parsed: {win}")
     return win
 
-def genetic_algorithm(population_size=10, num_generations=100):
+def evaluate_agents(population):
+    print("Evaluating agents...")
+    fitness_scores = []
+    for agent in population:
+        score = simulate_game(agent)
+        fitness_scores.append(score)
+    print("All agents evaluated.")
+    return fitness_scores
+
+def mutate(agent, mutation_rate=0.05):
+    """ Randomly adjust the parameters of the exploration function """
+    print("Mutating agent...")
+    def mutated_function(param1, param2):
+        new_param1 = param1 + random.uniform(-0.05, 0.05) if random.random() < mutation_rate else param1
+        new_param2 = param2 + random.uniform(-0.05, 0.05) if random.random() < mutation_rate else param2
+        return agent.compute_exploration_constant(new_param1, new_param2)
+    agent.compute_exploration_constant = lambda p1, p2: mutated_function(p1, p2)
+    print("Mutation completed.")
+
+def crossover(parent1, parent2):
+    print("Performing crossover...")
+    # Simple crossover: take one part from each parent
+    child1 = GeneticAgent(Agent(PlayerColor.RED), lambda p1, p2: parent1.compute_exploration_constant(p1, p2))
+    child2 = GeneticAgent(Agent(PlayerColor.RED), lambda p1, p2: parent2.compute_exploration_constant(p1, p2))
+    print("Crossover completed.")
+    return child1, child2
+
+def genetic_algorithm(population_size=10, num_generations=10):
     population = initialise_population(population_size)
     for generation in range(num_generations):
         print(f"Generation {generation + 1}")
-        fitness_scores = [simulate_game(agent) for agent in population]
+        fitness_scores = evaluate_agents(population)
         parents = random.choices(population, weights=fitness_scores, k=2)
         new_population = []
         for _ in range(population_size // 2):

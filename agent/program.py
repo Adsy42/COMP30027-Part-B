@@ -1,15 +1,13 @@
 # COMP30024 Artificial Intelligence, Semester 1 2024
 # Project Part B: Game Playing Agent
 # python -m referee agent agent
-from referee.game import PlayerColor, Action, PlaceAction, Coord, MAX_TURNS
+from referee.game import PlayerColor, Action, PlaceAction, Coord
 from .bit_board.bitboard import BitBoard
 from .monte_carlo import Monte_Carlo_Tree_Node 
 import time
 from profiled_functions import profiler, profiled_function, TimeoutException, time_limited_execution
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
-AVG_SECS_PER_TURN = 2.4 
-MAX_ACTIONS = MAX_TURNS/2
 
 class Agent:
     def __init__(self, color: PlayerColor, **referee: dict):
@@ -20,11 +18,13 @@ class Agent:
         self._root = None
         self.profiler = profiler
         self._opponent_colour = PlayerColor.RED if color == PlayerColor.BLUE else PlayerColor.BLUE
+        self.turns_played = 0
         print(f"IM {color} GONNA OBLITERATE!")
 
     @profiled_function
     def action(self, **referee: dict) -> Action:
         self.profiler.record_action_call()
+        self.time_remaining = referee["time_remaining"]
 
         if not self.played and not self.intial_move:
             self.played = True
@@ -45,11 +45,13 @@ class Agent:
         best_move = self.mcts_select_best_move()
         self._root = None 
         self.profiler.export_to_csv()
+        self.turns_played += 1
         return BitBoard.bitboard_piece_to_placeaction(best_move.action)
     
     def mcts_select_best_move(self):
         start_time = time.time()
-        end_time = start_time + 2.4
+        print(self.time_remaining)
+        end_time = start_time + self.time_remaining/(MAX_ACTIONS_PER_OPPONENT - self.turns_played)
         simulation_count = 0
         try:
             while not time_limited_execution(end_time):
