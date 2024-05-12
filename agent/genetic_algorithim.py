@@ -4,7 +4,7 @@ import random
 import re
 from dataclasses import dataclass
 from referee.game import PlayerColor
-
+TESTING_AGENTS = ["testing_agents.greedy_search.py", "testing_agents.random_bot.py", "testing_agents.mini_max.py"]
 MATCH_WINNING_PLAYER = r"player (\d+)"
 
 @dataclass
@@ -69,7 +69,7 @@ def parse_game_result(output):
     print(f"Game result parsed: {win}")
     return win
 
-def genetic_algorithm(population_size=10, num_generations=10):
+def genetic_algorithm(population_size=10, num_generations=100):
     population = initialise_population(population_size)
     for generation in range(num_generations):
         print(f"Generation {generation + 1}")

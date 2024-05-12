@@ -1,7 +1,7 @@
 from referee.game import PlayerColor, Action, PlaceAction, Coord
 from agent.bit_board.bitboard import BitBoard
 import time
-
+from profiled_functions import profiled_function, profiler2, time_limited_execution, TimeoutException
 class Agent:
     """
     This class is the "entry point" for your agent, providing an interface to
@@ -18,13 +18,16 @@ class Agent:
         self.time_limit = 2.4
         self.played = False
         self.intial_move = None
+        self.profiler = profiler2
         match color:
             case PlayerColor.RED:
                 print("Testing: I am playing as RED")
             case PlayerColor.BLUE:
                 print("Testing: I am playing as BLUE")
 
+    @profiled_function
     def action(self, **referee: dict) -> Action:
+        self.profiler.record_action_call()
         if not self.played:
             self.played = True
             if not self.intial_move:
@@ -49,10 +52,15 @@ class Agent:
         for move in self._board.valid_pieces(self._color):
             new_board = self._board.copy()
             new_board.apply_action(move, self._color, True)
-            move_value = self.minimax(new_board, float('-inf'), float('inf'), False, end_time)
+            try:
+                move_value = self.minimax(new_board, float('-inf'), float('inf'), False, end_time)
+            except(TimeoutException):
+                self.profiler.export_to_csv()
+                return BitBoard.bitboard_piece_to_placeaction(best_move)
             if move_value > best_value:
                 best_value = move_value
                 best_move = move
+        self.profiler.export_to_csv()
         return BitBoard.bitboard_piece_to_placeaction(best_move)
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):
@@ -61,51 +69,42 @@ class Agent:
             self.intial_move = self._board.intial_move(color)
             print(self.intial_move)
 
-        """
-        This method is called by the referee after an agent has taken their
-        turn. You should use it to update the agent's internal game state. 
-        """
-
-        # There is only one action type, PlaceAction
-        place_action: PlaceAction = action
-        c1, c2, c3, c4 = place_action.coords
-
-        # Here we are just printing out the PlaceAction coordinates for
-        # demonstration purposes. You should replace this with your own logic
-        # to update your agent's internal game state representation.
-        print(f"Testing: {color} played PLACE action: {c1}, {c2}, {c3}, {c4}")
-
     def minimax(self, board, alpha, beta, maximizingPlayer, end_time, depth = 0):
-        if time.time() > end_time or depth > 3:  # Check if the current time exceeds the end time
+        self.profiler.record_nodes_expanded()
+        time_limited_execution(end_time)
+        if depth > 2:  # Check if the current time exceeds the end time
             player_colour = self._color if maximizingPlayer else PlayerColor.BLUE if self._color == PlayerColor.RED else PlayerColor.RED
             return self.evaluate(player_colour, board)
-
         if maximizingPlayer:
             maxEval = float('-inf')
             for move in board.valid_pieces(self._color):
-                if time.time() > end_time:
-                    break  # Early exit if time limit is reached during loop
-                new_board = board.copy()
-                new_board.apply_action(move,self._color, True)
-                eval = self.minimax(new_board, alpha, beta, False, end_time, depth + 1)
-                maxEval = max(maxEval, eval)
-                alpha = max(alpha, eval)
-                if beta <= alpha:
-                    break
+                try:
+                    time_limited_execution(end_time)
+                    new_board = board.copy()
+                    new_board.apply_action(move,self._color, True)
+                    eval = self.minimax(new_board, alpha, beta, False, end_time, depth + 1)
+                    maxEval = max(maxEval, eval)
+                    alpha = max(alpha, eval)
+                    if beta <= alpha:
+                        break
+                except:
+                    return maxEval
             return maxEval
         else:
             minEval = float('inf')
             opponent_color = self.opponent_color(self._color)
             for move in board.valid_pieces(opponent_color):
-                if time.time() > end_time:
-                    break  # Early exit if time limit is reached during loop
-                new_board = board.copy()
-                new_board.apply_action(move,opponent_color, True)
-                eval = self.minimax(new_board, alpha, beta, True, end_time, depth + 1)
-                minEval = min(minEval, eval)
-                beta = min(beta, eval)
-                if beta <= alpha:
-                    break
+                try:
+                    time_limited_execution(end_time)
+                    new_board = board.copy()
+                    new_board.apply_action(move,opponent_color, True)
+                    eval = self.minimax(new_board, alpha, beta, True, end_time, depth + 1)
+                    minEval = min(minEval, eval)
+                    beta = min(beta, eval)
+                    if beta <= alpha:
+                        break
+                except:
+                    return minEval
             return minEval
 
     def evaluate(self, current_player, board: BitBoard):

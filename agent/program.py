@@ -5,6 +5,7 @@ from referee.game import PlayerColor, Action, PlaceAction, Coord, MAX_TURNS
 from .bit_board.bitboard import BitBoard
 from .monte_carlo import Monte_Carlo_Tree_Node 
 import time
+from profiled_functions import profiler, profiled_function, TimeoutException, time_limited_execution
 EXPLORATION_CONSTANT = 1.41
 MAX_ACTIONS_PER_OPPONENT = 75
 AVG_SECS_PER_TURN = 2.4 
@@ -17,10 +18,14 @@ class Agent:
         self.played = False
         self.intial_move = None
         self._root = None
+        self.profiler = profiler
         self._opponent_colour = PlayerColor.RED if color == PlayerColor.BLUE else PlayerColor.BLUE
         print(f"IM {color} GONNA OBLITERATE!")
 
+    @profiled_function
     def action(self, **referee: dict) -> Action:
+        self.profiler.record_action_call()
+
         if not self.played and not self.intial_move:
             self.played = True
             if self._color == self._color:
@@ -34,41 +39,39 @@ class Agent:
             else:
                 return self.board.bitboard_piece_to_placeaction(self.intial_move)
         self._root = Monte_Carlo_Tree_Node(None, None, self._color, self.board.copy(), self._color, self._opponent_colour)
-        
-        self._root.generate_children(self._color)
+        start_time = time.time()
+        end_time = start_time + 2.4
+        self._root.generate_children(self._color, end_time)
         best_move = self.mcts_select_best_move()
         self._root = None 
+        self.profiler.export_to_csv()
         return BitBoard.bitboard_piece_to_placeaction(best_move.action)
     
     def mcts_select_best_move(self):
         start_time = time.time()
+        end_time = start_time + 2.4
         simulation_count = 0
-        while time.time() - start_time < AVG_SECS_PER_TURN:
-            leaf_node = self.traverse(self._root)
-            simulation_result = leaf_node.rollout()
-            leaf_node.backpropagate(simulation_result)
-            simulation_count += 1
+        try:
+            while not time_limited_execution(end_time):
+                    leaf_node = self.traverse(self._root, end_time)
+                    simulation_result = leaf_node.rollout(end_time)
+                    leaf_node.backpropagate(simulation_result, end_time)
+                    simulation_count += 1
+                    self.profiler.record_simulation()
+        except(TimeoutException):
+            return self._root.best_child()
         print(f"Total simulations conducted in this round: {simulation_count}")
         return self._root.best_child()
 
-    def traverse(self, node):
+    def traverse(self, node, end_time):
         current_node = node
-        while not current_node.is_leaf_node():
+        while not current_node.is_leaf_node() and not time_limited_execution(end_time):
             current_node:Monte_Carlo_Tree_Node = current_node.selection()
 
         if current_node.number_of_visits == 0:
             # Switch to the opponent's color for the next move
             next_colour = PlayerColor.RED if current_node.colour == PlayerColor.BLUE else PlayerColor.BLUE
-            current_node.generate_children(next_colour)
-            # best_piece = current_node.my_board.best_valid_piece(next_colour)
-            
-            # if best_piece is not None:
-            #     new_board = current_node.my_board.copy()
-            #     new_board.apply_action(best_piece, next_colour, True) 
-            #     new_child = Monte_Carlo_Tree_Node(current_node, best_piece, next_colour, new_board, self._color, self._opponent_colour)
-            #     current_node.children_nodes.append(new_child)
-            #     current_node = new_child
-        
+            current_node.generate_children(next_colour, end_time)        
         return current_node
 
     
