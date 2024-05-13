@@ -53,9 +53,7 @@ class Agent:
                     simulation_count += 1
         except(TimeoutException):
             best_child = self._root.best_child()
-            print(best_child.total_score)
             return best_child
-        print(f"Total simulations conducted in this round: {simulation_count}")
         return self._root.best_child()
 
     def traverse(self, node, end_time):
