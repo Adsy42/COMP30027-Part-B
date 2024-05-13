@@ -4,6 +4,7 @@ from referee.game.actions import PlaceAction
 from referee.game.coord import Coord
 from .precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
 from random import choice
+import heapq
 
 BOARD_N = 11
 TILES_LEN = 4
@@ -35,6 +36,29 @@ class BitBoard:
     def intial_move(self, opponent_colour):
         return choice(self.valid_pieces(opponent_colour))
     
+    def best_valid_piece(self, player_colour: PlayerColor, num_best: int = 1) -> list[int]:
+        """Returns a list of bitboard representations of the valid pieces that maximize the player's score, up to 'num_best' pieces."""
+        empty_cells = self.empty_adjacent_cells(player_colour)
+        top_pieces = []  # This will be a min-heap
+
+        # Initialize combined boards for checking occupied positions
+        combined_boards = self.Boards['combined']
+
+        for empty_cell in empty_cells:
+            for position in bitboards_pre_computed[empty_cell]:
+                if not (position & combined_boards):  # Ensure the position is not already occupied
+                    score = self.scoring(position, player_colour)
+                    # Use a tuple (-score, position) because heapq is a min-heap, and we need a max-heap behavior
+                    if len(top_pieces) < num_best:
+                        heapq.heappush(top_pieces, (-score, position))
+                    else:
+                        # Only push to the heap if the current score is higher than the smallest score in the heap
+                        heapq.heappushpop(top_pieces, (-score, position))
+
+        # Since the scores are negative in the heap for max-heap behavior, convert them back
+        return [position for score, position in sorted(top_pieces, reverse=True)]
+    
+
     def lines_removed(self):
         row_checks = [idx for idx, row_bb in enumerate(full_rows)
                       if (self.Boards['combined'] & row_bb) == row_bb]
@@ -104,45 +128,6 @@ class BitBoard:
                 self.Boards[color] &= ~col_mask
         self.Boards['combined'] = self.Boards[PlayerColor.RED] | self.Boards[PlayerColor.BLUE]
     
-    def cell_occupied_by(self, bitindex):
-        """Determines if a cell at a given bit index is occupied and by which player."""
-        if self.Boards[PlayerColor.RED] & (1 << bitindex):
-            return 'r'
-        elif self.Boards[PlayerColor.BLUE] & (1 << bitindex):
-            return 'b'
-        return None
-
-    def render(self, use_color=True, use_unicode=True) -> str:
-        """
-        Returns a visualization of the game board as a multiline string, with
-        optional ANSI color codes and Unicode characters (if applicable).
-        """
-        def apply_ansi(str, bold=True, color=True):
-            bold_code = "\033[1m" if bold else ""
-            color_code = ""
-            if color == "r":
-                color_code = "\033[31m"  # Red
-            elif color == "b":
-                color_code = "\033[34m"  # Blue
-            return f"{bold_code}{color_code}{str}\033[0m"
-
-        output = ""
-        for r in range(BOARD_N):
-            for c in range(BOARD_N):
-                bitindex = self.get_bit_index(r, c)
-                occupied_by = self.cell_occupied_by(bitindex)
-                if occupied_by:
-                    text = 'r' if occupied_by == 'r' else 'b'
-                    if use_color:
-                        output += apply_ansi(text, color=occupied_by, bold=False)
-                    else:
-                        output += text
-                else:
-                    output += "."
-                output += " "
-            output += "\n"
-        print(output)
-    
     def copy(self):
         new_board = BitBoard()
         new_board.Boards = self.Boards.copy()
@@ -180,31 +165,6 @@ class BitBoard:
                 for position in bitboards_pre_computed[bitindex]
                 if not (position & self.Boards['combined'])]
     
-
-    def render1(self, use_color=False, use_unicode=False) -> str:
-        """
-        Returns a visualization of the game board as a multiline string.
-        """
-        output = ""
-        for r in range(BOARD_N):  # Ensure BOARD_N is defined as the size of the board
-            for c in range(BOARD_N):
-                bitindex = self.get_bit_index(r, c)  # Ensure this method correctly retrieves the bit index for the cell
-                occupied_by = self.cell_occupied_by(bitindex)  # Method to check who occupies the cell
-                if occupied_by == 'r':
-                    text = 'R'
-                elif occupied_by == 'b':
-                    text = 'B'
-                else:
-                    text = '.'
-                output += text + " "
-            output += "\n"
-
-        # Write the output to a file
-        with open("stupid.txt", 'a') as file:
-            file.write('\n\n')
-            file.write(output)
-
-        return output
     
     def best_piece(self, player_colour: PlayerColor):
         empty_cells = self.empty_adjacent_cells(player_colour)

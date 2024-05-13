@@ -1,13 +1,10 @@
 from referee.game import PlayerColor, Action, PlaceAction, Coord
 from agent.bit_board.bitboard import BitBoard
 import time
-from agent.profiled_functions import profiled_function, profiler2, time_limited_execution, TimeoutException
+from scripts.timeout_exception import time_limited_execution, TimeoutException
 from referee.game.constants import MAX_TURNS
 class Agent:
-    """
-    This class is the "entry point" for your agent, providing an interface to
-    respond to various Tetress game events.
-    """
+
 
     def __init__(self, color: PlayerColor, **referee: dict):
         """
@@ -19,17 +16,10 @@ class Agent:
         self.time_limit = 2.4
         self.played = False
         self.intial_move = None
-        self.profiler = profiler2
         self.turns_played = 0
-        match color:
-            case PlayerColor.RED:
-                print("Testing: I am playing as RED")
-            case PlayerColor.BLUE:
-                print("Testing: I am playing as BLUE")
 
-    @profiled_function
+
     def action(self, **referee: dict) -> Action:
-        self.profiler.record_action_call()
         if not self.played:
             self.played = True
             if not self.intial_move:
@@ -53,12 +43,10 @@ class Agent:
             try:
                 move_value = self.minimax(new_board, float('-inf'), float('inf'), False, end_time)
             except(TimeoutException):
-                self.profiler.export_to_csv()
                 return BitBoard.bitboard_piece_to_placeaction(best_move)
             if move_value > best_value:
                 best_value = move_value
                 best_move = move
-        self.profiler.export_to_csv()
         self.turns_played += 1
         return BitBoard.bitboard_piece_to_placeaction(best_move)
 
@@ -68,8 +56,7 @@ class Agent:
             self.intial_move = self._board.intial_move(color)
             print(self.intial_move)
 
-    def minimax(self, board, alpha, beta, maximizingPlayer, end_time, depth = 0):
-        self.profiler.record_nodes_expanded()
+    def minimax(self, board: BitBoard, alpha, beta, maximizingPlayer, end_time, depth = 0):
         time_limited_execution(end_time)
         if depth > 2:  # Check if the current time exceeds the end time
             player_colour = self._color if maximizingPlayer else PlayerColor.BLUE if self._color == PlayerColor.RED else PlayerColor.RED

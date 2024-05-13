@@ -37,7 +37,7 @@ def parse_game_result(output):
     print("Parsing game result...")
     result = output.strip().split('\n')[-1]
     match = re.search(r'Winning player: (\d)', result)
-    win = 1 if match and match.group(1) == '1' else 0
+    win = 1 if match and match.group(1) == '2' else 0
     return win
 
 def mutate(agent, mutation_rate=0.1):

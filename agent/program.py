@@ -5,9 +5,8 @@ from referee.game import PlayerColor, Action, PlaceAction, Coord
 from .bit_board.bitboard import BitBoard
 from .monte_carlo import Monte_Carlo_Tree_Node 
 import time
-import os
-from .profiled_functions import profiler, profiled_function, TimeoutException, time_limited_execution
-EXPLORATION_CONSTANT = 1.41
+from scripts.timeout_exception import time_limited_execution, TimeoutException
+EXECUTION_TIME = 2.4
 MAX_ACTIONS_PER_OPPONENT = 75
 
 class Agent:
@@ -17,29 +16,14 @@ class Agent:
         self.played = False
         self.intial_move = None
         self._root = None
-        self.profiler = profiler
         self._opponent_colour = PlayerColor.RED if color == PlayerColor.BLUE else PlayerColor.BLUE
         self.turns_played = 0
-        self.param1 = float(os.getenv('PARAM1', '0.0'))
-        self.param2 = float(os.getenv('PARAM2', '0.0'))
-        self.param3 = float(os.getenv('PARAM3', '0.0'))
-        self.param4 = float(os.getenv('PARAM4', '0.0'))
-        
-        print(f"I'M {self._color.name} AND I'M GONNA OBLITERATE!")
-    def monte_carlo_const(self, time_remaining, turns_played, board_dominance, board_gaps):
-        return self.param1 * time_remaining +  self.param2* turns_played + self.param3*board_dominance* self.param4*board_gaps
-    
-    @profiled_function
+
     def action(self, **referee: dict) -> Action:
-        self.profiler.record_action_call()
-        self.time_remaining = referee["time_remaining"]
-        EXPLORATION_CONSTANT = self.monte_carlo_const(referee["time_remaining"], self.turns_played, 
-                                                      self.board.tiles[self._color] - self.board.tiles[self._opponent_colour], 
-                                                      len(self.board.valid_pieces(self._color)) - len(self.board.valid_pieces(self._opponent_colour)))
+        self.time_remaining = referee["time_remaining"]        
         if not self.played and not self.intial_move:
             self.played = True
             if self._color == self._color:
-                print("Testing: RED is playing a PLACE action")
                 return PlaceAction(
                     Coord(3, 3), 
                     Coord(3, 4), 
@@ -50,18 +34,16 @@ class Agent:
                 return self.board.bitboard_piece_to_placeaction(self.intial_move)
         self._root = Monte_Carlo_Tree_Node(None, None, self._color, self.board.copy(), self._color, self._opponent_colour)
         start_time = time.time()
-        end_time = start_time + 2.4
+        end_time = start_time + EXECUTION_TIME
         self._root.generate_children(self._color, end_time)
         best_move = self.mcts_select_best_move()
         self._root = None 
-        self.profiler.export_to_csv()
         self.turns_played += 1
         return BitBoard.bitboard_piece_to_placeaction(best_move.action)
     
     def mcts_select_best_move(self):
         start_time = time.time()
-        print(self.time_remaining)
-        end_time = start_time + self.time_remaining/(MAX_ACTIONS_PER_OPPONENT - self.turns_played)
+        end_time = start_time + EXECUTION_TIME
         simulation_count = 0
         try:
             while not time_limited_execution(end_time):
@@ -69,15 +51,16 @@ class Agent:
                     simulation_result = leaf_node.rollout(end_time)
                     leaf_node.backpropagate(simulation_result, end_time)
                     simulation_count += 1
-                    self.profiler.record_simulation()
         except(TimeoutException):
-            return self._root.best_child()
+            best_child = self._root.best_child()
+            print(best_child.total_score)
+            return best_child
         print(f"Total simulations conducted in this round: {simulation_count}")
         return self._root.best_child()
 
     def traverse(self, node, end_time):
         current_node = node
-        while not current_node.is_leaf_node() and not time_limited_execution(end_time):
+        while not current_node.is_leaf_node():
             current_node:Monte_Carlo_Tree_Node = current_node.selection()
 
         if current_node.number_of_visits == 0:
