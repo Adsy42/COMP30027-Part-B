@@ -4,7 +4,7 @@ from referee.game.actions import PlaceAction
 from referee.game.coord import Coord
 from .precomputed_bitboards import bitboards_pre_computed, full_rows, full_columns, adjacent_bitboards
 from random import choice
-import heapq
+import random
 
 BOARD_N = 11
 TILES_LEN = 4
@@ -36,27 +36,24 @@ class BitBoard:
     def intial_move(self, opponent_colour):
         return choice(self.valid_pieces(opponent_colour))
     
-    def best_valid_piece(self, player_colour: PlayerColor, num_best: int = 1) -> list[int]:
-        """Returns a list of bitboard representations of the valid pieces that maximize the player's score, up to 'num_best' pieces."""
+    def best_valid_piece(self, player_colour: PlayerColor, num_best: int = 10) -> list[int]:
+        """Returns a list of bitboard representations of up to 'num_best' random valid pieces."""
         empty_cells = self.empty_adjacent_cells(player_colour)
-        top_pieces = []  # This will be a min-heap
+        valid_pieces = []
 
         # Initialize combined boards for checking occupied positions
         combined_boards = self.Boards['combined']
 
+        # Collect all valid positions
         for empty_cell in empty_cells:
             for position in bitboards_pre_computed[empty_cell]:
                 if not (position & combined_boards):  # Ensure the position is not already occupied
-                    score = self.scoring(position, player_colour)
-                    # Use a tuple (-score, position) because heapq is a min-heap, and we need a max-heap behavior
-                    if len(top_pieces) < num_best:
-                        heapq.heappush(top_pieces, (-score, position))
-                    else:
-                        # Only push to the heap if the current score is higher than the smallest score in the heap
-                        heapq.heappushpop(top_pieces, (-score, position))
+                    valid_pieces.append(position)
 
-        # Since the scores are negative in the heap for max-heap behavior, convert them back
-        return [position for score, position in sorted(top_pieces, reverse=True)]
+        # Pick up to 'num_best' random pieces from the list of valid pieces
+        random_pieces = random.sample(valid_pieces, min(num_best, len(valid_pieces)))
+
+        return random_pieces
     
 
     def lines_removed(self):
