@@ -58,7 +58,7 @@ class Monte_Carlo_Tree_Node:
 
     def generate_children(self, colour, end_time):
         if not self.children_nodes:
-            pieces = self.my_board.best_valid_piece(colour, 20)
+            pieces = self.my_board.best_valid_piece(colour, 30)
             op_col = PlayerColor.RED if colour == PlayerColor.BLUE else PlayerColor.BLUE
             for piece in pieces:
                 time_limited_execution(end_time)
