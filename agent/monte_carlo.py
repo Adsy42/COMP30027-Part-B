@@ -4,6 +4,7 @@ from .bit_board.bitboard import BitBoard
 from referee.game.player import PlayerColor
 from .timeout_exception import time_limited_execution
 EXPLORATION_CONSTANT = 1.41
+CUT_OFF_CHILDREN = 25
 
 class Monte_Carlo_Tree_Node:
     def __init__(self, parent_node, action: int, colour, board: BitBoard, my_colour, opponent_colour):
@@ -58,7 +59,7 @@ class Monte_Carlo_Tree_Node:
 
     def generate_children(self, colour, end_time):
         if not self.children_nodes:
-            pieces = self.my_board.best_valid_piece(colour, 25)
+            pieces = self.my_board.best_valid_piece(colour, CUT_OFF_CHILDREN)
             op_col = PlayerColor.RED if colour == PlayerColor.BLUE else PlayerColor.BLUE
             for piece in pieces:
                 time_limited_execution(end_time)
