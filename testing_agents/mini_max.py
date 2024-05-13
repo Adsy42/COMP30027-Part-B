@@ -1,7 +1,7 @@
 from referee.game import PlayerColor, Action, PlaceAction, Coord
 from agent.bit_board.bitboard import BitBoard
 import time
-from scripts.timeout_exception import time_limited_execution, TimeoutException
+from agent.timeout_exception import time_limited_execution, TimeoutException
 from referee.game.constants import MAX_TURNS
 class Agent:
 

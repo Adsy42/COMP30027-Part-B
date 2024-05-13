@@ -2,7 +2,7 @@ from math import log, sqrt
 from random import choice
 from .bit_board.bitboard import BitBoard
 from referee.game.player import PlayerColor
-from scripts.timeout_exception import time_limited_execution
+from .timeout_exception import time_limited_execution
 EXPLORATION_CONSTANT = 1.41
 
 class Monte_Carlo_Tree_Node:

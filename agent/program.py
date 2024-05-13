@@ -5,7 +5,7 @@ from referee.game import PlayerColor, Action, PlaceAction, Coord
 from .bit_board.bitboard import BitBoard
 from .monte_carlo import Monte_Carlo_Tree_Node 
 import time
-from scripts.timeout_exception import time_limited_execution, TimeoutException
+from .timeout_exception import time_limited_execution, TimeoutException
 EXECUTION_TIME = 2.4
 MAX_ACTIONS_PER_OPPONENT = 75
 
